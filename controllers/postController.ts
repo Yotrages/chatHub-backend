@@ -14,20 +14,20 @@ export class PostsController {
 
       const posts = await Post.find()
         .populate("authorId", "username avatar")
-        .populate("likes", "username avatar") // Optional: populate likes
+        .populate("likes", "username avatar") 
         .populate({
           path: "comments",
           populate: {
             path: "authorId",
             select: "username avatar",
           },
-          options: { sort: { createdAt: -1 } }, // Show latest  comments
+          options: { sort: { createdAt: -1 } },
         }).populate("comments.likes", "username avatar")
         .populate("comments.replies.authorId", "username avatar")
         .populate("comments.replies.likes", "username avatar")
         .populate("comments.replies.replies.authorId", "username avatar")
         .populate("comments.replies.replies.likes", "username avatar")
-        .sort({ createdAt: -1 }) // Newest first
+        .sort({ createdAt: -1 }) 
         .skip(skip)
         .limit(limit);
 
@@ -55,36 +55,31 @@ export class PostsController {
   static async createPost(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { content } = req.body;
-      const files = req.files as Express.Multer.File[]; // ✅ req.files for array upload
+      const files = req.files as Express.Multer.File[]; 
       const authorId = req.user?.userId;
 
-      // Check if user is authenticated
       if (!authorId) {
         res.status(401).json({ error: "User not authenticated" });
         return;
       }
 
-      // Validate content or images
       if (!content && (!files || files.length === 0)) {
         res.status(400).json({ error: "Post must have content or images" });
         return;
       }
 
-      // Extract image URLs from uploaded files
       const imageUrls = files ? files.map((file) => file.path) : []; // ✅ file.path contains Cloudinary URL
 
       const post = new Post({
-        content: content || "", // Allow empty content if images are provided
+        content: content || "", 
         authorId,
-        images: imageUrls, // ✅ Array of Cloudinary URLs
+        images: imageUrls, 
         likes: [],
         comments: [],
-        // Don't set createdAt manually - timestamps: true handles this
       });
 
       await post.save();
 
-      // Populate author info
       await post.populate("authorId", "username avatar")
 
       res.status(201).json({
@@ -98,48 +93,40 @@ export class PostsController {
     }
   }
 
-  // Like/unlike post
   static async toggleLike(req: AuthRequest, res: Response): Promise<void> {
   try {
     const { postId } = req.params;
     const userId = req.user?.userId;
 
-    // Check if user is authenticated
     if (!userId) {
       res.status(401).json({ error: "User not authenticated" });
       return;
     }
 
-    // Find post without population first
     const post = await Post.findById(postId);
     if (!post) {
       res.status(404).json({ error: "Post not found" });
       return;
     }
 
-    // Convert userId to ObjectId for proper comparison
     const userObjectId = new mongoose.Types.ObjectId(userId);
     
-    // Check if user already liked the post
     const isLiked = post.likes.some(like => like.equals(userObjectId));
     
     if (isLiked) {
-      // Remove like
       post.likes = post.likes.filter(like => !like.equals(userObjectId));
     } else {
-      // Add like
       post.likes.push(userObjectId);
     }
 
     await post.save();
 
-    // Now populate the likes for the response
     await post.populate("likes", "username avatar");
 
     res.json({
       likes: post.likes,
       postId: postId,
-      isLiked: !isLiked, // Opposite of the previous state
+      isLiked: !isLiked, 
       userId,
     });
   } catch (error) {
@@ -154,7 +141,6 @@ export class PostsController {
     const { content } = req.body;
     const authorId = req.user?.userId;
 
-    // Validation
     if (!content || !postId || !authorId) {
       res.status(400).json({ error: "Missing required fields" });
       return;
@@ -169,16 +155,15 @@ export class PostsController {
     const newComment = {
       content,
       authorId: new mongoose.Types.ObjectId(authorId),
-      likes: [], // Initialize empty likes array
+      likes: [],
       createdAt: new Date(),
       updatedAt: new Date(),
-      replies: [] // Initialize empty replies array if needed
+      replies: [] 
     };
 
-    // Add to comments array and get the updated post
     const updatedPost = await Post.findByIdAndUpdate(
       postId,
-      { $push: { comments: { $each: [newComment], $position: 0 } } }, // Add to beginning
+      { $push: { comments: { $each: [newComment], $position: 0 } } },
       { new: true }
     ).populate("comments.authorId", "username avatar");
 
@@ -187,11 +172,10 @@ export class PostsController {
       return;
     }
 
-    // Get the newly created comment (first one in the array)
     const createdComment = updatedPost.comments[0];
 
     res.status(201).json({ 
-      comment: createdComment, // Return the actual populated comment
+      comment: createdComment, 
       postId 
     });
   } catch (error) {
@@ -216,14 +200,14 @@ export class PostsController {
 
       const posts = await Post.find()
         .populate("authorId", "username avatar")
-        .populate("likes", "username avatar") // Optional: populate likes
+        .populate("likes", "username avatar") 
         .populate({
           path: "comments",
           populate: {
             path: "authorId",
             select: "username avatar",
           },
-          options: { sort: { createdAt: -1 } }, // Show latest  comments
+          options: { sort: { createdAt: -1 } }, 
         }).populate("comments.likes", "username avatar")
         .populate("comments.replies.authorId", "username avatar")
         .populate("comments.replies.likes", "username avatar")
@@ -236,7 +220,7 @@ export class PostsController {
       res.json({
         success: true,
         posts,
-        totalPosts: totalUserPosts, // Now shows user's post count
+        totalPosts: totalUserPosts, 
       });
     } catch (error) {
       console.error(error);
@@ -251,7 +235,6 @@ export class PostsController {
       const { content } = req.body;
       const authorId = req.user?.userId;
 
-      // Validation
       if (!content || !postId || !authorId || !commentId) {
         res.status(400).json({ error: "Missing required fields" });
         return;
@@ -263,7 +246,6 @@ export class PostsController {
         return;
       }
 
-      // Find the comment index
       const commentIndex = post.comments.findIndex(
         (c) =>
           c._id.toString() === commentId && c.authorId.toString() === authorId
@@ -274,7 +256,6 @@ export class PostsController {
         return;
       }
 
-      // Update the comment
       post.comments[commentIndex].content = content;
       await post.save();
       await post.populate("comments.authorId", "username avatar")
@@ -299,7 +280,6 @@ export class PostsController {
         return;
       }
 
-      // Validate at least content or images exists
       if (!content && (!images || images.length === 0)) {
         res.status(400).json({ error: "Post must have content or images" });
         return;
@@ -338,14 +318,14 @@ export class PostsController {
       const posts = await Post.find({
         content: { $regex: query, $options: "i" },
       }).populate("authorId", "username avatar")
-        .populate("likes", "username avatar") // Optional: populate likes
+        .populate("likes", "username avatar") 
         .populate({
           path: "comments",
           populate: {
             path: "authorId",
             select: "username avatar",
           },
-          options: { sort: { createdAt: -1 } }, // Show latest  comments
+          options: { sort: { createdAt: -1 } }, 
         }).populate("comments.likes", "username avatar")
         .populate("comments.replies.authorId", "username avatar")
         .populate("comments.replies.likes", "username avatar")
@@ -384,7 +364,6 @@ export class PostsController {
         return;
       }
 
-      // Add any additional cleanup here (e.g., delete associated images)
       await Post.findByIdAndDelete(postId).session(session);
 
       await session.commitTransaction();
@@ -420,7 +399,6 @@ export class PostsController {
         return;
       }
 
-      // Find the comment using type-safe approach
       const comment = post.comments.find((c) => c._id.equals(commentId));
 
       if (!comment) {
@@ -429,7 +407,6 @@ export class PostsController {
         return;
       }
 
-      // Check authorization - must be comment author or post author
       const isCommentAuthor = comment.authorId.equals(userId);
       // const isPostAuthor = post.authorId.equals(userId);
 
@@ -441,7 +418,6 @@ export class PostsController {
         return;
       }
 
-      // Remove the comment
       post.comments.pull(commentId);
       await post.save({ session });
 
@@ -467,7 +443,6 @@ export class PostsController {
       return;
     }
 
-    // Validate ObjectId formats
     if (!Types.ObjectId.isValid(postId) || !Types.ObjectId.isValid(commentId)) {
       res.status(400).json({ error: "Invalid ID format" });
       return;
@@ -491,24 +466,20 @@ export class PostsController {
     );
 
     if (isCurrentlyLiked) {
-      // Unlike: Remove user from likes array
       comment.likes = comment.likes.filter(
         (likeId: any) => likeId.toString() !== userId
       );
     } else {
-      // Like: Add user to likes array
       comment.likes.push(userObjectId);
     }
 
     await post.save();
 
-    // Populate the comment likes with user data
     await post.populate({
       path: 'comments.likes',
       select: 'username avatar'
     });
 
-    // Find the updated comment after population
     const updatedComment = post.comments.id(commentId);
 
     res.status(200).json({
@@ -550,7 +521,6 @@ export class PostsController {
         return;
       }
 
-      // Create new reply object - let Mongoose handle _id generation
       const newReply = {
         authorId: new Types.ObjectId(authorId),
         content: content.trim(),
@@ -558,18 +528,14 @@ export class PostsController {
         replies: [],
       };
 
-      // Push the new reply - Mongoose will handle the conversion
       comment.replies.push(newReply as any);
 
-      // Mark the replies array as modified (important for nested documents)
       comment.markModified("replies");
 
       await post.save();
 
-      // Get the created reply (now has _id and timestamps)
       const createdReply = comment.replies[comment.replies.length - 1];
 
-      // Populate author information if needed
       await post.populate("comments.replies.authorId", "username avatar");
 
       res.status(201).json({
@@ -590,13 +556,11 @@ export class PostsController {
       const { content } = req.body;
       const authorId = req.user?.userId;
 
-      // Validation
       if (!content || !authorId) {
         res.status(400).json({ error: "Missing required fields" });
         return;
       }
 
-      // Validate ObjectId formats
       if (
         !Types.ObjectId.isValid(postId) ||
         !Types.ObjectId.isValid(commentId) ||
@@ -612,24 +576,20 @@ export class PostsController {
         return;
       }
 
-      // Find the comment
       const comment = post.comments.id(commentId);
       if (!comment) {
         res.status(404).json({ error: "Comment not found" });
         return;
       }
 
-      // Improved recursive function to find parent reply
       const findParentReply = (
         replies: Array<IReply>,
         targetId: string
       ): any => {
         for (const reply of replies) {
-          // Compare ObjectId properly
           if (reply._id && reply._id.toString() === targetId) {
             return reply;
           }
-          // Recursively search in nested replies
           if (reply.replies && reply.replies.length > 0) {
             const found = findParentReply(reply.replies, targetId);
             if (found) return found;
@@ -638,14 +598,12 @@ export class PostsController {
         return null;
       };
 
-      // Find parent reply
       const parentReply = findParentReply(comment.replies, parentReplyId);
       if (!parentReply) {
         res.status(404).json({ error: "Parent reply not found" });
         return;
       }
 
-      // Create new nested reply
       const newNestedReply = {
         authorId: new Types.ObjectId(authorId),
         content: content.trim(),
@@ -653,23 +611,18 @@ export class PostsController {
         replies: [],
       };
 
-      // Initialize replies array if it doesn't exist
       if (!parentReply.replies) {
         parentReply.replies = [];
       }
 
-      // Add the new reply
       parentReply.replies.push(newNestedReply);
 
-      // Mark the nested path as modified
       comment.markModified("replies");
 
       await post.save();
 
-      // Get the created reply
       const createdReply = parentReply.replies[parentReply.replies.length - 1];
 
-      // Populate author information if needed
       await post.populate("comments.replies.replies.authorId", "username avatar");
 
       res.status(201).json({
@@ -702,11 +655,9 @@ export class PostsController {
         return;
       }
 
-      // Recursive function to find and remove reply
       const removeReply = (replies: any[], targetId: string): boolean => {
         for (let i = 0; i < replies.length; i++) {
           if (replies[i]._id.toString() === targetId) {
-            // Check if user owns the reply
             if (replies[i].authorId.toString() !== userId) {
               throw new Error("Unauthorized");
             }
@@ -757,7 +708,6 @@ export class PostsController {
       return;
     }
 
-    // Validate ObjectId formats
     if (
       !Types.ObjectId.isValid(postId) ||
       !Types.ObjectId.isValid(commentId) ||
@@ -781,11 +731,9 @@ export class PostsController {
 
     const findReply = (replies: Array<IReply>, targetId: string): any => {
       for (const reply of replies) {
-        // Compare ObjectId properly
         if (reply._id && reply._id.toString() === targetId) {
           return reply;
         }
-        // Recursively search in nested replies
         if (reply.replies && reply.replies.length > 0) {
           const found = findReply(reply.replies, targetId);
           if (found) return found;
@@ -794,7 +742,6 @@ export class PostsController {
       return null;
     };
 
-    // Find the specific reply
     const reply = findReply(comment.replies, replyId);
     if (!reply) {
       res.status(404).json({ error: "Reply not found" });
@@ -807,26 +754,21 @@ export class PostsController {
     );
 
     if (isCurrentlyLiked) {
-      // Unlike: Remove user from likes array
       reply.likes = reply.likes.filter(
         (likeId: any) => likeId.toString() !== userId
       );
     } else {
-      // Like: Add user to likes array
       reply.likes.push(userObjectId);
     }
 
-    // Mark the nested field as modified
     comment.markModified("replies");
     await post.save();
 
-    // Populate the reply likes with user data
     await post.populate({
       path: 'comments.replies.likes',
       select: 'username avatar'
     });
 
-    // Find the updated reply after population
     const updatedReply = findReply(comment.replies, replyId);
 
     res.json({
@@ -847,7 +789,6 @@ export class PostsController {
   }
 }
 
-// Like/Unlike a nested reply (reply to a reply)
 static async likeNestedReply(req: AuthRequest, res: Response) {
   try {
     const { postId, commentId, nestedReplyId } = req.params;
@@ -858,7 +799,6 @@ static async likeNestedReply(req: AuthRequest, res: Response) {
       return;
     }
 
-    // Validate ObjectId formats
     if (
       !Types.ObjectId.isValid(postId) ||
       !Types.ObjectId.isValid(commentId) ||
@@ -880,7 +820,6 @@ static async likeNestedReply(req: AuthRequest, res: Response) {
       return;
     }
 
-    // Recursive function to find and like/unlike nested reply
     const findAndToggleLike = (
       replies: any[],
       targetId: string,
@@ -894,12 +833,10 @@ static async likeNestedReply(req: AuthRequest, res: Response) {
           );
 
           if (isCurrentlyLiked) {
-            // Unlike: Remove user from likes array
             reply.likes = reply.likes.filter(
               (likeId: any) => likeId.toString() !== userId
             );
           } else {
-            // Like: Add user to likes array
             reply.likes.push(userObjectId);
           }
 
@@ -910,7 +847,6 @@ static async likeNestedReply(req: AuthRequest, res: Response) {
           };
         }
 
-        // Recursively search in nested replies
         if (reply.replies && reply.replies.length > 0) {
           const result = findAndToggleLike(reply.replies, targetId, userId);
           if (result.found) return result;
@@ -927,17 +863,14 @@ static async likeNestedReply(req: AuthRequest, res: Response) {
       return;
     }
 
-    // Mark the nested field as modified
     comment.markModified("replies");
     await post.save();
 
-    // Populate the nested reply likes with user data
     await post.populate({
       path: 'comments.replies.replies.likes',
       select: 'username avatar'
     });
 
-    // Get the updated reply data after population
     const updatedResult = findAndToggleLike(comment.replies, nestedReplyId, userId);
 
     res.json({
@@ -956,7 +889,6 @@ static async likeNestedReply(req: AuthRequest, res: Response) {
 }
 
 
-  // Get like status and count for a reply (helper method)
   static async getReplyLikeStatus(req: AuthRequest, res: Response) {
     try {
       const { postId, commentId, replyId } = req.params;
@@ -974,7 +906,6 @@ static async likeNestedReply(req: AuthRequest, res: Response) {
         return;
       }
 
-      // Recursive function to find reply and get like status
       const findReplyLikeStatus = (
         replies: any[],
         targetId: string
@@ -1045,7 +976,6 @@ static async likeNestedReply(req: AuthRequest, res: Response) {
         return;
       }
 
-      // Recursive function to get like status for all replies
       const getAllReplyLikeStatuses = (replies: any[]): any[] => {
         return replies.map((reply) => {
           const isLiked = userId
@@ -1097,7 +1027,6 @@ static async likeNestedReply(req: AuthRequest, res: Response) {
         return;
       }
 
-      // Find the specific reply
       const findReplyLikers = (replies: any[], targetId: string): any => {
         for (const reply of replies) {
           if (reply._id && reply._id.toString() === targetId) {

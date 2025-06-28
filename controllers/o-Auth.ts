@@ -3,14 +3,12 @@ import { Request, Response } from "express";
 import { generateToken } from "../utils/generateToken";
 
 const handleOAuthCallback = async (req: Request, res: Response) => {
-    // Check if authData exists
     if (!req.authData) {
         return res.redirect('http://localhost:5173/auth?error=' + encodeURIComponent('Authentication data missing'));
     }
 
     const { profile, provider } = req.authData; 
     
-    // Extract intent from state parameter
     let intent = 'login';
     let redirectBase = 'http://localhost:5173';
     let successRedirect = '/dashboard';
@@ -21,7 +19,6 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
             intent = decoded.intent || 'login';
             successRedirect = decoded.redirectUrl || '/dashboard';
             
-            // Optional: Validate timestamp for additional security
             const timestamp = decoded.timestamp;
             if (timestamp && (Date.now() - timestamp > 10 * 60 * 1000)) { // 10 minutes
                 throw new Error('State parameter expired');
@@ -36,7 +33,6 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
         const existingUser = await User.findOne({ email: profile.email });
   
         if (existingUser) {
-            // Check for provider mismatch
             if (existingUser.provider !== provider) {
                 const errorMsg = `Email already used with ${existingUser.provider || 'another method'}`;
                 return res.redirect(`${redirectBase}/auth?error=${encodeURIComponent(errorMsg)}`);
@@ -46,7 +42,6 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
                 const errorMsg = 'An account with this email already exists. Please sign in instead.';
                 return res.redirect(`${redirectBase}/auth?error=${encodeURIComponent(errorMsg)}&suggest=login`);
             } else {
-                // Successful login - redirect to secure token exchange
                 const token = generateToken({
                     userId: existingUser._id,
                     email: existingUser.email
@@ -55,12 +50,10 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
             }
         }
   
-        // Handle new user
         if (intent === 'login') {
             const errorMsg = 'No account found with this email. Please create an account first.';
             return res.redirect(`${redirectBase}/auth?error=${encodeURIComponent(errorMsg)}&suggest=register`);
         } else {
-            // Create new user
             const newUser = await User.create({
                 name: profile.name,
                 email: profile.email,

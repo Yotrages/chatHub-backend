@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../Models/User';
+import { HTTP_STATUS } from '../utils/constant';
 
 interface RegisterRequest {
   username: string;
@@ -23,20 +24,17 @@ export const register = async (req: Request<{}, {}, RegisterRequest>, res: Respo
     console.log('Register request body:', req.body);
     console.log('Register request file:', req.file);
 
-    // Validate required fields
     if (!username || !email || !password) {
       return res.status(400).json({ 
         error: 'Username, email, and password are required' 
       });
     }
-    // if not file
     if (!req.file) {
       return res.status(400).json({ 
         error: 'image upload failed' 
       });
     }
 
-    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({ 
@@ -44,14 +42,12 @@ export const register = async (req: Request<{}, {}, RegisterRequest>, res: Respo
       });
     }
 
-    // Validate password length
     if (password.length < 6) {
       return res.status(400).json({ 
         error: 'Password must be at least 6 characters long' 
       });
     }
 
-    // Check if user already exists
     const existingUser = await User.findOne({ 
       $or: [{ email }, { username }]
     });
@@ -63,7 +59,6 @@ export const register = async (req: Request<{}, {}, RegisterRequest>, res: Respo
       });
     }
 
-    // Check if JWT_SECRET exists
     if (!process.env.JWT_SECRET) {
       console.error('JWT_SECRET is not defined in environment variables');
       return res.status(500).json({ 
@@ -71,10 +66,8 @@ export const register = async (req: Request<{}, {}, RegisterRequest>, res: Respo
       });
     }
     
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
     
-    // Create user
     const user = new User({
       username,
       email,
@@ -93,14 +86,13 @@ export const register = async (req: Request<{}, {}, RegisterRequest>, res: Respo
     const savedUser = await user.save();
     console.log('User saved successfully:', savedUser._id);
     
-    // Generate JWT token
     const token = jwt.sign(
       { userId: savedUser._id },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
     
-    return res.status(201).json({
+    return res.status(HTTP_STATUS.CREATED).json({
       message: 'User created successfully',
       token,
       user: {
@@ -114,7 +106,6 @@ export const register = async (req: Request<{}, {}, RegisterRequest>, res: Respo
   } catch (error: any) {
     console.error('Registration error:', error);
     
-    // Handle specific MongoDB errors
     if (error.name === 'ValidationError') {
       const validationErrors = Object.values(error.errors).map((err: any) => err.message);
       return res.status(400).json({ 
@@ -143,14 +134,12 @@ export const login = async (req: Request<{}, {}, LoginRequest>, res: Response): 
 
     console.log('Login request:', { email: email, passwordProvided: !!password });
 
-    // Validate required fields
     if (!email || !password) {
       return res.status(400).json({ 
         error: 'Email and password are required' 
       });
     }
 
-    // Check if JWT_SECRET exists
     if (!process.env.JWT_SECRET) {
       console.error('JWT_SECRET is not defined in environment variables');
       return res.status(500).json({ 
@@ -158,7 +147,6 @@ export const login = async (req: Request<{}, {}, LoginRequest>, res: Response): 
       });
     }
     
-    // Find user
     const user = await User.findOne({ email: email });
     console.log('User found:', !!user);
     
@@ -169,7 +157,6 @@ export const login = async (req: Request<{}, {}, LoginRequest>, res: Response): 
       return res.status(400).json({ error: 'user have no password' });
     }
     
-    // Compare password
     const isMatch = await bcrypt.compare(password, user.password);
     console.log('Password match:', isMatch);
     
@@ -177,15 +164,13 @@ export const login = async (req: Request<{}, {}, LoginRequest>, res: Response): 
       return res.status(400).json({ error: 'Invalid credentials' });
     }
 
-    // Update user online status
     user.online = true;
     await user.save();
     
-    // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id },
+      { userId: user._id, email: user.email },
       process.env.JWT_SECRET,
-      { expiresIn: '7d' }
+      { expiresIn: '24h' }
     );
     
     return res.json({
@@ -222,7 +207,6 @@ export const changePassword = async (req: Request, res: Response) => {
       return res.status(401).json({ message: "Invalid email account" });
     }
 
-    // Hash new password before updating
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -234,7 +218,7 @@ export const changePassword = async (req: Request, res: Response) => {
 
     return res.status(200).json({ message: "Password updated successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Server Error", error });
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: "Server Error", error });
   }
 };
 
@@ -261,6 +245,6 @@ export const getUsers = async (req: Request, res: Response) => {
     res.status(200).json(otherUsers)
   } catch (error: any) {
       console.log(error)
-      res.status(500).json({message: "Server error"})
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({message: "Server error"})
   }
 }

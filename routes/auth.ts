@@ -21,7 +21,6 @@ const storage = new CloudinaryStorage({
 const upload = multer({ storage })
 
 
-// Correct way to attach route handlers
 router.post('/register', upload.single("avatar"),(req, res, next) => {
   register(req, res).catch(next);
 });

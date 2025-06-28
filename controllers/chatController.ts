@@ -3,10 +3,8 @@ import { Conversation } from '../Models/Conversation';
 import { Message } from '../Models/Message';
 import { AuthRequest } from '../types';
 
-// Get all conversations for a user
 export const getConversations = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    // Fix: Use userId instead of id (matching your auth middleware)
     const userId = req.user?.userId;
     
     if (!userId) {
@@ -31,7 +29,6 @@ export const getConversations = async (req: AuthRequest, res: Response): Promise
 export const createConversation = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { participantIds, type, name } = req.body;
-    // Fix: Use userId instead of id
     const userId = req.user?.userId;
     
     if (!userId) {
@@ -42,7 +39,6 @@ export const createConversation = async (req: AuthRequest, res: Response): Promi
     // Add current user to participants
     const allParticipants = [...participantIds, userId];
     
-    // For direct messages, check if conversation already exists
     if (type === 'direct' && allParticipants.length === 2) {
       const existing = await Conversation.findOne({
         type: 'direct',
@@ -92,7 +88,6 @@ export const getMessages = async (req: AuthRequest, res: Response): Promise<void
 export const sendMessage = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { conversationId, content, messageType = 'text' } = req.body;
-    // Fix: Use userId instead of id
     const senderId = req.user?.userId;
     
     if (!senderId) {
@@ -111,7 +106,6 @@ export const sendMessage = async (req: AuthRequest, res: Response): Promise<void
     await message.save();
     await message.populate('senderId', 'username avatar');
     
-    // Update conversation's last message
     await Conversation.findByIdAndUpdate(conversationId, {
       lastMessage: message._id,
     });
@@ -139,7 +133,6 @@ export const updateConversation = async (req: AuthRequest, res: Response): Promi
       return;
     }
 
-    // Check if user is authorized (participant or admin for group chats)
     if (!conversation.participants.includes(userId) || 
         (conversation.type === 'group' && !conversation.admins?.includes(userId))) {
       res.status(403).json({ error: 'Not authorized to update this conversation' });
@@ -160,7 +153,6 @@ export const updateConversation = async (req: AuthRequest, res: Response): Promi
   }
 };
 
-// Delete or leave conversation
 export const deleteConversation = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { conversationId } = req.params;
@@ -195,7 +187,6 @@ export const deleteConversation = async (req: AuthRequest, res: Response): Promi
         await conversation.save();
       }
     } else {
-      // Delete direct chats completely
       await Conversation.deleteOne({ _id: conversationId });
     }
 
@@ -205,7 +196,6 @@ export const deleteConversation = async (req: AuthRequest, res: Response): Promi
   }
 };
 
-// Mark messages as read
 export const markMessagesAsRead = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { conversationId } = req.params;
@@ -227,7 +217,6 @@ export const markMessagesAsRead = async (req: AuthRequest, res: Response): Promi
   }
 };
 
-// Edit message
 export const editMessage = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { messageId } = req.params;
@@ -262,7 +251,6 @@ export const editMessage = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
-// Delete message
 export const deleteMessage = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { messageId } = req.params;
@@ -291,7 +279,6 @@ export const deleteMessage = async (req: AuthRequest, res: Response): Promise<vo
   }
 };
 
-// Add reaction to message
 export const addReaction = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { messageId } = req.params;
@@ -309,7 +296,6 @@ export const addReaction = async (req: AuthRequest, res: Response): Promise<void
       return;
     }
 
-    // Remove existing reaction from this user
     message.reactions = message.reactions?.filter(r => r.userId.toString() !== userId) || [];
     message.reactions.push({ userId, emoji });
 
@@ -321,7 +307,6 @@ export const addReaction = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
-// Remove reaction from message
 export const removeReaction = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { messageId } = req.params;

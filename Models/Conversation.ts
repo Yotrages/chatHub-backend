@@ -35,19 +35,19 @@ const conversationSchema = new Schema<IConversation>({
     ref: 'User',
     required: true,
   },
-  isPinned: { // New
+  isPinned: { 
     type: Boolean,
     default: false,
   },
-  isMuted: { // New
+  isMuted: { 
     type: Boolean,
     default: false,
   },
-  isArchived: { // New
+  isArchived: { 
     type: Boolean,
     default: false,
   },
-  avatar: { // New for group chats
+  avatar: { 
     type: String,
     default: null,
   },

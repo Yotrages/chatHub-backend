@@ -1,4 +1,3 @@
-// src/utils/database.ts
 import mongoose from 'mongoose';
 import { config } from '../utils/constant';
 
@@ -8,7 +7,6 @@ const connectDB = async (): Promise<void> => {
     
     console.log(`MongoDB Connected: ${conn.connection.host}`);
     
-    // Connection events
     mongoose.connection.on('connected', () => {
       console.log('Mongoose connected to MongoDB');
     });
@@ -21,7 +19,6 @@ const connectDB = async (): Promise<void> => {
       console.log('Mongoose disconnected');
     });
     
-    // Graceful shutdown
     process.on('SIGINT', async () => {
       await mongoose.connection.close();
       console.log('MongoDB connection closed due to app termination');

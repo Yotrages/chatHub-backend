@@ -3,10 +3,10 @@ import { Document, Types } from 'mongoose';
 
 export interface IUser extends Document {
   _id: string;
-  username?: string; // Optional now
-  name?: string; // Required for all users
+  username?: string; 
+  name?: string; 
   email: string;
-  password?: string; // Optional for OAuth users
+  password?: string; 
   provider?: 'google' | 'github' | null;
   providerId?: string;
   avatar?: string;
@@ -83,13 +83,11 @@ export interface IPost extends Document {
   updatedAt?: Date;
 }
 
-// Socket types
 export interface AuthenticatedSocket {
   userId?: string;
   user?: IUser;
 }
 
-// API Response types
 export interface ApiResponse<T = any> {
   success: boolean;
   message: string;
@@ -97,7 +95,6 @@ export interface ApiResponse<T = any> {
   error?: string;
 }
 
-// JWT Payload
 export interface JWTPayload {
   userId: string;
   email: string;
@@ -105,7 +102,6 @@ export interface JWTPayload {
   exp?: number;
 }
 
-// Request types
 declare global {
   namespace Express {
     interface Request {
@@ -125,7 +121,6 @@ export interface AuthRequest extends Request {
 }
 
 
-// Socket events
 export interface ServerToClientEvents {
   'new-message': (message: IMessage) => void;
   'user-online': (userId: string) => void;

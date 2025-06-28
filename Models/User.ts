@@ -5,7 +5,7 @@ const userSchema = new Schema<IUser>({
   username: {
     type: String,
     unique: true,
-    sparse: true, // Allows multiple null values for OAuth users
+    sparse: true, 
     trim: true,
     minlength: [3, 'Username must be at least 3 characters'],
     maxlength: [30, 'Username cannot exceed 30 characters'],
@@ -25,7 +25,6 @@ const userSchema = new Schema<IUser>({
   password: {
     type: String,
     required: function(this: IUser) {
-      // Password is required only for manual registration (no provider)
       return !this.provider;
     },
     minlength: [6, 'Password must be at least 6 characters'],
@@ -37,7 +36,7 @@ const userSchema = new Schema<IUser>({
   },
   providerId: {
     type: String,
-    sparse: true, // Allows multiple null values for manual users
+    sparse: true, 
   },
   avatar: {
     type: String,
@@ -55,20 +54,16 @@ const userSchema = new Schema<IUser>({
   timestamps: true,
 });
 
-// Compound index to ensure unique provider + providerId combinations
 userSchema.index({ provider: 1, providerId: 1 }, { 
   unique: true, 
-  sparse: true // Only applies to documents where both fields exist
+  sparse: true 
 });
 
-// Pre-save middleware to handle validation logic
 userSchema.pre('save', function(next) {
-  // If it's OAuth registration, ensure providerId exists
   if (this.provider && !this.providerId) {
     return next(new Error('Provider ID is required for OAuth users'));
   }
   
-  // If it's manual registration, ensure password exists
   if (!this.provider && !this.password) {
     return next(new Error('Password is required for manual registration'));
   }

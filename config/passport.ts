@@ -3,7 +3,6 @@ import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import { Strategy as GitHubStrategy } from 'passport-github2';
 import { Request } from 'express';
 
-// Extend the Express Request interface to include custom auth data
 declare global {
   namespace Express {
     interface Request {

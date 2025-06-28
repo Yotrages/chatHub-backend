@@ -3,7 +3,6 @@ import Joi from 'joi';
 import { HTTP_STATUS, ERROR_MESSAGES } from '../utils/constant';
 import rateLimit from 'express-rate-limit';
 
-// Validation schemas
 export const schemas = {
   register: Joi.object({
     username: Joi.string().min(3).max(30).required().messages({
@@ -78,8 +77,8 @@ export const validate = (schema: Joi.ObjectSchema) => {
 
 
 export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // Limit each IP to 5 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 5, 
   message: {
     success: false,
     message: 'Too many authentication attempts, please try again later.',
@@ -89,8 +88,8 @@ export const authLimiter = rateLimit({
 });
 
 export const generalLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000, 
+  max: 100,
   message: {
     success: false,
     message: 'Too many requests, please try again later.',

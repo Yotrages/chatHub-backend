@@ -20,7 +20,7 @@ const replySchema = new Schema<IReply>({
   }],
   replies: [{
     type: Schema.Types.Mixed
-  }] // Change this to embed the schema directly
+  }] 
 }, { timestamps: true });
 
 
@@ -55,12 +55,10 @@ const postSchema = new Schema<IPost>({
     trim: true,
     maxlength: [2000, 'Post cannot exceed 2000 characters'],
   },
-// Instead of just checking for image extensions
 images: [{
   type: String,
   validate: {
     validator: function(v) {
-      // Accept both image and video formats
       return /\.(jpg|jpeg|png|gif|bmp|webp|mp4|avi|mov|wmv|flv|webm)$/i.test(v);
     },
     message: 'Invalid media URL format'
@@ -75,7 +73,6 @@ images: [{
   timestamps: true,
 });
 
-// Indexes for better performance
 postSchema.index({ authorId: 1 });
 postSchema.index({ createdAt: -1 });
 

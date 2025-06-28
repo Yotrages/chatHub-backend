@@ -6,13 +6,13 @@ import { Message } from '../Models/Message';
 
 declare module 'socket.io' {
   interface Socket {
-    userId: string; // Make it non-optional if always present after auth
+    userId: string; 
   }
 }
 
 export class SocketHandler {
   private io: Server;
-  private onlineUsers = new Map<string, string>(); // userId -> socketId
+  private onlineUsers = new Map<string, string>(); 
   
   constructor(io: Server) {
     this.io = io;
@@ -34,14 +34,15 @@ export class SocketHandler {
       
       // Handle real-time messaging
       socket.on('send_message', (data) => this.handleSendMessage(socket, data));
-      socket.on('join_conversation', (conversationId) => {
-        socket.join(conversationId);
-      });
-      socket.on('leave_conversation', (conversationId) => {
-        socket.leave(conversationId);
-      });
+      socket.on('join_conversation', (conversationId) => socket.join(conversationId));
+      socket.on('leave_conversation', (conversationId) => socket.leave(conversationId));
       socket.on('typing', (data) => this.handleTyping(socket, data));
       socket.on('stop_typing', (data) => this.handleStopTyping(socket, data));
+      socket.on('edit_message', (data) => this.handleEditMessage(socket, data)); // New
+      socket.on('delete_message', (data) => this.handleDeleteMessage(socket, data)); // New
+      socket.on('add_reaction', (data) => this.handleAddReaction(socket, data)); // New
+      socket.on('remove_reaction', (data) => this.handleRemoveReaction(socket, data)); // New
+      socket.on('mark_read', (data) => this.handleMarkRead(socket, data)); // New
       
       // Handle disconnection
       socket.on('disconnect', () => {
@@ -61,15 +62,14 @@ export class SocketHandler {
     } catch (error) {
       next(new Error('Authentication error'));
     }
-  }
+  };
   
   private async joinUserConversations(socket: any) {
     try {
       const conversations = await Conversation.find({
-        participants: socket.userId
+        participants: socket.userId,
       });
-      
-      conversations.forEach(conv => {
+      conversations.forEach((conv) => {
         socket.join(conv._id.toString());
       });
     } catch (error) {
@@ -79,35 +79,142 @@ export class SocketHandler {
   
   private async handleSendMessage(socket: any, data: any) {
     try {
-      const { conversationId, content, messageType = 'text' } = data;
+      const { conversationId, content, messageType = 'text', fileUrl, fileName } = data;
       
-      // Save message to database
       const message = new Message({
         content,
         senderId: socket.userId,
         conversationId,
         messageType,
+        fileUrl,
+        fileName,
         timestamp: new Date(),
-        isRead: false
+        isRead: false,
       });
       
       await message.save();
       await message.populate('senderId', 'username avatar');
       
-      // Update conversation
       await Conversation.findByIdAndUpdate(conversationId, {
         lastMessage: message._id,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
       
       // Broadcast to conversation participants
       this.io.to(conversationId).emit('new_message', message);
       
-      // Send delivery confirmation to sender
       socket.emit('message_sent', { messageId: message._id });
       
     } catch (error) {
       socket.emit('message_error', { error: 'Failed to send message' });
+    }
+  }
+
+  private async handleEditMessage(socket: any, data: any) {
+    try {
+      const { messageId, content } = data;
+
+      const message = await Message.findById(messageId);
+      if (!message) {
+        socket.emit('message_error', { error: 'Message not found' });
+        return;
+      }
+
+      if (message.senderId.toString() !== socket.userId) {
+        socket.emit('message_error', { error: 'Not authorized to edit this message' });
+        return;
+      }
+
+      message.content = content;
+      message.edited = true;
+      message.editedAt = new Date();
+
+      await message.save();
+      await message.populate('senderId', 'username avatar');
+
+      this.io.to(message.conversationId.toString()).emit('message_edited', message);
+    } catch (error) {
+      socket.emit('message_error', { error: 'Failed to edit message' });
+    }
+  }
+
+  private async handleDeleteMessage(socket: any, data: any) {
+    try {
+      const { messageId } = data;
+
+      const message = await Message.findById(messageId);
+      if (!message) {
+        socket.emit('message_error', { error: 'Message not found' });
+        return;
+      }
+
+      if (message.senderId.toString() !== socket.userId) {
+        socket.emit('message_error', { error: 'Not authorized to delete this message' });
+        return;
+      }
+
+      await Message.deleteOne({ _id: messageId });
+      this.io.to(message.conversationId.toString()).emit('message_deleted', { messageId });
+    } catch (error) {
+      socket.emit('message_error', { error: 'Failed to delete message' });
+    }
+  }
+
+  private async handleAddReaction(socket: any, data: any) {
+    try {
+      const { messageId, emoji } = data;
+
+      const message = await Message.findById(messageId);
+      if (!message) {
+        socket.emit('message_error', { error: 'Message not found' });
+        return;
+      }
+
+      message.reactions = message.reactions?.filter(r => r.userId.toString() !== socket.userId) || [];
+      message.reactions.push({ userId: socket.userId, emoji });
+
+      await message.save();
+      await message.populate('senderId', 'username avatar');
+
+      this.io.to(message.conversationId.toString()).emit('reaction_added', message);
+    } catch (error) {
+      socket.emit('message_error', { error: 'Failed to add reaction' });
+    }
+  }
+
+  private async handleRemoveReaction(socket: any, data: any) {
+    try {
+      const { messageId } = data;
+
+      const message = await Message.findById(messageId);
+      if (!message) {
+        socket.emit('message_error', { error: 'Message not found' });
+        return;
+      }
+
+      message.reactions = message.reactions?.filter(r => r.userId.toString() !== socket.userId) || [];
+
+      await message.save();
+      await message.populate('senderId', 'username avatar');
+
+      this.io.to(message.conversationId.toString()).emit('reaction_removed', message);
+    } catch (error) {
+      socket.emit('message_error', { error: 'Failed to remove reaction' });
+    }
+  }
+
+  private async handleMarkRead(socket: any, data: any) {
+    try {
+      const { conversationId } = data;
+
+      await Message.updateMany(
+        { conversationId, isRead: false, senderId: { $ne: socket.userId } },
+        { isRead: true }
+      );
+
+      this.io.to(conversationId).emit('messages_read', { conversationId, userId: socket.userId });
+    } catch (error) {
+      socket.emit('message_error', { error: 'Failed to mark messages as read' });
     }
   }
   
@@ -115,7 +222,7 @@ export class SocketHandler {
     const { conversationId } = data;
     socket.to(conversationId).emit('user_typing', {
       userId: socket.userId,
-      conversationId
+      conversationId,
     });
   }
   
@@ -123,7 +230,7 @@ export class SocketHandler {
     const { conversationId } = data;
     socket.to(conversationId).emit('user_stop_typing', {
       userId: socket.userId,
-      conversationId
+      conversationId,
     });
   }
   
@@ -131,10 +238,9 @@ export class SocketHandler {
     try {
       await User.findByIdAndUpdate(userId, {
         isOnline,
-        lastSeen: new Date()
+        lastSeen: new Date(),
       });
       
-      // Broadcast online status to relevant users
       this.io.emit('user_status_change', { userId, isOnline });
     } catch (error) {
       console.error('Error updating user status:', error);
