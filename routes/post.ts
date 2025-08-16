@@ -27,23 +27,19 @@ const upload = multer({
 });
 
 router.get("/", PostsController.getPosts);
-router.get("/:userId/post", PostsController.getUserPosts);
-router.get("/:postId/comment/:commentId/reply/:replyId", authenticateToken, PostsController.getReplyLikeStatus);
-router.get("/:postId/comment/:commentId", authenticateToken, PostsController.getBulkReplyLikeStatus);
-router.get("/:postId/comment/:commentId/reply/:replyId", authenticateToken, PostsController.getReplyLikers);
-router.get("/search/:query",  PostsController.searchPost);
+router.get('/:id', PostsController.getSinglePost);
+router.get("/:postId/comments", authenticateToken, PostsController.getPostComments);
+router.get("/:postId/comments/:commentId", authenticateToken, PostsController.getSingleCommentReplies)
 router.post("/", authenticateToken, upload.array('images'), PostsController.createPost);
-router.post("/:postId/like", authenticateToken, PostsController.toggleLike);
-router.post("/:postId/comment/:commentId", authenticateToken, PostsController.toggleLikeComment);
+router.post("/:postId/react", authenticateToken, PostsController.addReaction);
+router.post("/:postId/comment/:commentId/react", authenticateToken, PostsController.addCommentReaction);
 router.post("/:postId/comment", authenticateToken, PostsController.createComment);
-router.post("/:postId/comment/:commentId/reply", authenticateToken, PostsController.addReply);
-router.post("/:postId/comment/:commentId/reply/:parentReplyId", authenticateToken, PostsController.addNestedReply);
-router.post("/:postId/comment/:commentId/reply/like/:replyId", authenticateToken, PostsController.likeReply);
-router.post("/:postId/comment/:commentId/reply/nestedReply/:nestedReplyId", authenticateToken, PostsController.likeNestedReply);
+router.post('/:postId/save', PostsController.savePost)
+router.post('/:postId/share', authenticateToken, PostsController.trackPostShare);
 router.put("/:postId/comment/:commentId", authenticateToken, PostsController.updateComment);
 router.put("/:postId", authenticateToken, upload.array('images'), PostsController.updatePost);
 router.delete("/:postId", authenticateToken, PostsController.deletePost);
 router.delete("/:postId/comment/:commentId", authenticateToken, PostsController.deleteComment);
-router.delete("/:postId/comment/:commentId/reply/:replyId", authenticateToken, PostsController.deleteReply);
+
 
 export default router;

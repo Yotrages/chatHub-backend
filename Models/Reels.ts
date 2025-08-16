@@ -1,7 +1,6 @@
-import mongoose, { Schema } from "mongoose";
-import { IComment, IPost } from "../types";
+import mongoose, { Schema, Types } from "mongoose";
+import { IComment, IReels, IReply } from "../types";
 
-// Reaction schema for likes, loves, etc.
 const reactionSchema = new Schema({
   userId: {
           type: Schema.Types.ObjectId,
@@ -24,7 +23,7 @@ const reactionSchema = new Schema({
 const commentSchema = new Schema<IComment>({
   dynamicId: {
     type: Schema.Types.ObjectId,
-    ref: 'Post',
+    ref: 'Reels',
     required: true
   },
   parentCommentId: {
@@ -65,47 +64,28 @@ file: {
   }
 }, { timestamps: true });
 
-// Post schema
-const postSchema = new Schema<IPost>({
-  authorId: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  content: {
-    type: String,
-    required: true,
-    maxlength: [10000, "Post cannot exceed 5000 characters"]
-  },
-  images: [
-      {
-        type: String,
-        validate: {
-          validator: function (v) {
-            return /\.(jpg|jpeg|png|gif|bmp|webp|mp4|avi|mov|wmv|flv|webm|mp3|mpeg)$/i.test(
-              v
-            );
-          },
-          message: "Invalid media URL format",
-        },
-      },
-    ],
-  reactions: [reactionSchema],
-  commentsCount: {
+const reelsSchema = new Schema<IReels>(
+  {
+    fileUrl: {
+      type: String,
+      required: true,
+    },
+    title: {
+      type: String,
+    },
+    authorId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    reactions: [reactionSchema],
+    comments: [commentSchema],
+    shareCount: { type: Number, default: 0 },
+    commentsCount: {
     type: Number,
     default: 0
   },
-    shareCount: { type: Number, default: 0 }, 
-
-  isEdited: {
-    type: Boolean,
-    default: false
-  },
-  editedAt: {
-    type: Date
-  },
-  // Privacy settings
-  visibility: {
+    visibility: {
     type: String,
     enum: ['public', 'friends', 'private'],
     default: 'public'
@@ -115,19 +95,19 @@ const postSchema = new Schema<IPost>({
     type: Boolean,
     default: false
   }
-}, { timestamps: true });
+  },
+  { timestamps: true }
+);
 
-// Indexes for better performance
 commentSchema.index({ dynamicId: 1, parentCommentId: 1, createdAt: -1 });
 commentSchema.index({ authorId: 1 });
-postSchema.index({ authorId: 1, createdAt: -1 });
-postSchema.index({ createdAt: -1 });
 
-// Middleware to update counts
+reelsSchema.index({ authorId: 1, createdAt: -1 });
+
 commentSchema.post('save', async function() {
   if (this.isNew && !this.isDeleted) {
     // Update post comment count
-    await mongoose.model('Post').findByIdAndUpdate(
+    await mongoose.model('Reels').findByIdAndUpdate(
       this.dynamicId,
       { $inc: { commentsCount: 1 } }
     );
@@ -142,5 +122,5 @@ commentSchema.post('save', async function() {
   }
 });
 
-export const Comment = mongoose.model("Comment", commentSchema);
-export const Post = mongoose.model("Post", postSchema);
+export const ReelComment = mongoose.model("ReelComment", commentSchema);
+export const Reels = mongoose.model("Reels", reelsSchema);

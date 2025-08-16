@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { User } from '../Models/User';
 
 dotenv.config();
 
@@ -80,3 +81,98 @@ export const SUCCESS_MESSAGES = {
   CONVERSATION_CREATED: 'Conversation created successfully',
   FILE_UPLOADED: 'File uploaded successfully',
 } as const;
+
+
+export async function detectMentions(content: string): Promise<string[]> {
+  const mentionRegex = /@(\w+)/g;
+  const mentions = content.match(mentionRegex)?.map(m => m.slice(1)) || [];
+  const users = await User.find({ username: { $in: mentions } }).select('_id');
+  return users.map(user => user._id.toString());
+}
+
+
+export async function populateNestedReplies(replies: any[]): Promise<void> {
+  for (let reply of replies) {
+    // Populate author
+    if (reply.authorId && !reply.authorId.username) {
+      await User.populate(reply, {
+        path: 'authorId',
+        select: 'username avatar'
+      });
+    }
+
+    // Populate reaction users
+    if (reply.reactions && reply.reactions.length > 0) {
+      await User.populate(reply, {
+        path: 'reactions.userId',
+        select: 'username avatar'
+      });
+    }
+
+    // Recursively populate nested replies
+    if (reply.replies && reply.replies.length > 0) {
+      await populateNestedReplies(reply.replies);
+    }
+  }
+}
+
+
+// async function updateReportStatus(reportId: string, status: string) {
+//   const report = await Report.findByIdAndUpdate(reportId, { status }, { new: true });
+//   const settings = await UserSettings.findOne({ userId: report.reporterId });
+//   if (settings?.notifications.inApp.systemUpdates) {
+//     await createNotification(report.reporterId, 'systemUpdates', {
+//       message: `Your report (${report.reportType}) has been ${status}`,
+//       url: `/settings/reports`
+//     });
+//   }
+// }
+
+export function containsBlockedKeywords(content: string, blockedKeywords: string[]): boolean {
+  if (!content || !blockedKeywords || blockedKeywords.length === 0) {
+    return false;
+  }
+
+  // Convert content to lowercase for case-insensitive matching
+  const contentLower = content.toLowerCase();
+  // Check if any blocked keyword is present in the content
+  return blockedKeywords.some(keyword => 
+    contentLower.includes(keyword.toLowerCase())
+  );
+}
+
+export function isSensitiveContent(content: string): boolean {
+  if (!content) {
+    return false;
+  }
+
+  // Predefined list of sensitive words/patterns (extend as needed)
+  const sensitiveWords = [
+    'explicit',
+    'violence',
+    'hate',
+    'offensive',
+    // Add more words or regex patterns as needed
+  ];
+
+  // Regular expressions for sensitive patterns
+  const sensitivePatterns = [
+    /\b(explicit|graphic|nsfw)\b/i, // Matches explicit, graphic, nsfw
+    /\b(violence|abuse|assault)\b/i, // Matches violent terms
+    /\b(hate|discriminat(e|ion)|slur)\b/i, // Matches hate speech
+  ];
+
+  const contentLower = content.toLowerCase();
+
+  // Check for sensitive words
+  const hasSensitiveWord = sensitiveWords.some(word => 
+    contentLower.includes(word)
+  );
+
+  // Check for sensitive patterns
+  const hasSensitivePattern = sensitivePatterns.some(pattern => 
+    pattern.test(contentLower)
+  );
+
+  return hasSensitiveWord || hasSensitivePattern;
+}

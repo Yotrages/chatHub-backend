@@ -1,5 +1,5 @@
 import express from 'express';
-import { register, login, getUsers } from '../controllers/authController';
+import { register, login, getUsers, getSingleUser, getUserPosts, getSavedPosts, getLikedPosts, updateUser, getUserReels, validateToken, getSuggestedUsers, updateOnlineStatus } from '../controllers/authController';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import multer from 'multer';
 import cloudinary from '../config/cloudinary.js';
@@ -12,8 +12,8 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req, file) => {
     return {
-      folder: 'avatar',
-      allowedFormats: ['jpeg', 'png', 'jpg', 'gif', 'webp', 'svg', 'mp4'],
+      folder: file.fieldname === 'avatar' ? 'avatar' : 'cover',
+      allowedFormats: ['jpeg', 'png', 'jpg', 'gif', 'webp', 'svg'],
     };
   },
 });
@@ -29,13 +29,27 @@ router.post('/login', (req, res, next) => {
   login(req, res).catch(next);
 });
 
+router.get("/:userId/posts", getUserPosts);
+router.get("/:userId/reels", getUserReels);
+
+router.patch('/users/:id', authenticateToken, upload.fields([
+  { name: 'avatar', maxCount: 1 },
+  { name: 'coverImage', maxCount: 1 }
+]), updateUser);
+router.post('/online-status', authenticateToken, updateOnlineStatus)
+router.get('/suggested', authenticateToken, getSuggestedUsers)
+
 router.get("/users", authenticateToken, getUsers)
+router.get("/users/:id", getSingleUser)
+router.get('/:userId/liked-posts', authenticateToken, getLikedPosts);
+router.get('/:userId/saved-posts', authenticateToken, getSavedPosts);
 // Google OAuth
-router.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
-router.get('/auth/google/callback', passport.authenticate('google', { session: false }), handleOAuthCallback);
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+router.get('/google/callback', passport.authenticate('google', { session: false }), handleOAuthCallback);
 
 // GitHub OAuth
-router.get('/auth/github', passport.authenticate('github', { scope: ['user:email'] }));
-router.get('/auth/github/callback', passport.authenticate('github', { session: false }), handleOAuthCallback);
+router.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
+router.get('/github/callback', passport.authenticate('github', { session: false }), handleOAuthCallback);
+router.post('/refresh', validateToken);
 
 export default router;

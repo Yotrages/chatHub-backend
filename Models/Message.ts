@@ -12,6 +12,7 @@ const messageSchema = new Schema<IMessage>({
     ref: 'User',
     required: true,
   },
+  postId: { type: mongoose.Schema.Types.ObjectId, ref: 'Post' },
   content: {
     type: String,
     required: [true, 'Message content is required'],
@@ -20,7 +21,7 @@ const messageSchema = new Schema<IMessage>({
   },
   messageType: {
     type: String,
-    enum: ['text', 'image', 'file'],
+    enum: ['text', 'image', 'file', 'audio', 'video', 'post'],
     default: 'text',
   },
   fileUrl: {

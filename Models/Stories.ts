@@ -1,0 +1,55 @@
+import mongoose, { Schema, Types } from "mongoose";
+import { IStories } from "../types";
+
+const storiesSchema = new Schema<IStories>({
+  fileType: {
+    type: String,
+    enum: ["image", "video"],
+    required: true,
+    default: "video",
+  },
+  fileUrl: {
+    type: String,
+    required: true
+  },
+  text: {
+    type: String,
+    sparse: true,
+    trim: true,
+  },
+  viewers: [{
+    type: Schema.Types.ObjectId,
+    ref: "User"
+  }],
+  authorId: {
+    type: Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  viewedAt: {
+    type: Date
+  },
+  reactions: [{
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    emoji: {
+      type: String,
+      required: true,
+    },
+  }],
+  textPosition: {
+    x: { type: Number, default: 0 },
+    y: { type: Number, default: 0 },
+  },
+  background: {
+    type: String,
+    default: "",
+  },
+}, { timestamps: true });
+
+storiesSchema.index({ authorId: 1 });
+
+export const Stories = mongoose.model("Stories", storiesSchema);

@@ -1,19 +1,37 @@
-import { Request } from 'express';
-import { Document, Types } from 'mongoose';
+import { Request } from "express";
+import { Document, Types } from "mongoose";
+import { Server as SocketIOServer } from 'socket.io';
 
 export interface IUser extends Document {
   _id: string;
-  username?: string; 
-  name?: string; 
+  username?: string;
+  name?: string;
   email: string;
-  password?: string; 
-  provider?: 'google' | 'github' | null;
+  password?: string;
+  provider?: "google" | "github" | null;
   providerId?: string;
   avatar?: string;
   online: boolean;
-  lastSeen: Date;
+  lastSeen: Date | null;
+  starredMessages: Types.ObjectId[];
   createdAt?: Date;
   updatedAt?: Date;
+  isPrivate?: boolean;
+  bio?: string;
+  followersCount?: number;
+  followingCount?: number;
+  postsCount?: number;
+  followers?: Types.ObjectId[]
+  following?: Types.ObjectId[]
+  archived?: Types.ObjectId[]
+  location?: string;
+  website?: string;
+  isVerified: boolean;
+  coverImage: string;
+  savedPost: Types.ObjectId[]
+  likedPost: Types.ObjectId[]
+  savedReel: Types.ObjectId[]
+  likedReel: Types.ObjectId[]
 }
 
 export interface IMessage extends Document {
@@ -21,7 +39,7 @@ export interface IMessage extends Document {
   conversationId: {};
   senderId: {};
   content: string;
-  type: 'text' | 'image' | 'file';
+  type: "text" | "image" | "file";
   timestamp: Date;
   edited?: boolean;
   messageType?: string;
@@ -29,8 +47,48 @@ export interface IMessage extends Document {
   fileName?: string;
   editedAt?: Date;
   isRead?: boolean;
-  replyTo?: string;
+  replyTo?: Types.ObjectId;
+  postId: Types.ObjectId;
   reactions?: {
+    userId: string;
+    emoji: string;
+  }[];
+}
+
+export interface IReels {
+  fileUrl: string;
+  title: string;
+  authorId: Types.ObjectId;
+  reactions: {
+    userId: string;
+    emoji: {
+      category: string;
+      name: string;
+    };
+  }[];
+  shareCount: number;
+  commentsCount: number;
+    visibility: 'public' | 'private' | 'friends';
+  comments: Types.DocumentArray<IComment>;
+  createdAt?: Date;
+  updatedAt?: Date;
+  isDeleted: boolean;
+}
+
+export interface IStories {
+  type: "video" | "image";
+  fileType: string;
+  viewers: Types.ObjectId[];
+  fileUrl: string;
+  text?: string;
+  viewedAt?: Date;
+  authorId: Types.ObjectId;
+  textPosition: {
+    x: number;
+    y: number;
+  };
+  background: string;
+  reactions: {
     userId: string;
     emoji: string;
   }[];
@@ -38,12 +96,13 @@ export interface IMessage extends Document {
 
 export interface IConversation extends Document {
   _id: string;
-  type: 'direct' | 'group';
+  type: "direct" | "group";
   name?: string;
   description?: string;
   participants: string[];
   admins?: string[];
   lastMessage?: string;
+  pinnedMessages: Types.ObjectId[];
   createdBy: {};
   createdAt: Date;
   updatedAt: Date;
@@ -55,10 +114,22 @@ export interface IConversation extends Document {
 
 export interface IComment extends Document {
   _id: Types.ObjectId;
+  dynamicId: Types.ObjectId;
+  parentCommentId: Types.ObjectId;
   authorId: Types.ObjectId;
   content: string;
-  replies: IReply[]
-  likes: Types.ObjectId[];
+  file?: string;
+  repliesCount: number;
+  isEdited: boolean;
+  editedAt: Date;
+  isDeleted: boolean;
+  reactions: {
+    userId: string;
+    emoji: {
+      category: string;
+      name: string;
+    };
+  }[];
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -66,7 +137,14 @@ export interface IComment extends Document {
 export interface IReply extends Document {
   authorId: Types.ObjectId;
   content: string;
-  likes: Types.ObjectId[];
+  file?: string;
+  reactions: {
+    userId: string;
+    emoji: {
+      category: string;
+      name: string;
+    };
+  }[];
   replies?: IReply[]; // This matches the embedded schema
   createdAt?: Date;
   updatedAt?: Date;
@@ -77,10 +155,22 @@ export interface IPost extends Document {
   authorId: Types.ObjectId;
   content: string;
   images?: string[];
-  likes: Types.ObjectId[];
+  commentsCount: number;
+  shareCount: number;
+  reactions: {
+    userId: string;
+    emoji: {
+      category: string;
+      name: string;
+    };
+  }[];
   comments: Types.DocumentArray<IComment>;
   createdAt?: Date;
   updatedAt?: Date;
+  visibility: 'public' | 'private' | 'friends';
+  isDeleted: boolean;
+  isEdited: boolean;
+  editedAt: Date;
 }
 
 export interface AuthenticatedSocket {
@@ -113,6 +203,16 @@ declare global {
   }
 }
 
+declare global {
+  namespace Express {
+    interface Request {
+      io?: SocketIOServer;
+    }
+  }
+}
+
+
+
 export interface AuthRequest extends Request {
   user?: {
     userId?: string;
@@ -120,33 +220,69 @@ export interface AuthRequest extends Request {
   };
 }
 
+export interface IFollow {
+  _id?: string;
+  followerId: Types.ObjectId;
+  followingId: Types.ObjectId;
+  status: "pending" | "accepted" | "blocked";
+  createdAt?: Date;
+  updatedAt?: Date;
+}
+
+export interface INotification {
+  _id?: string;
+  recipientId: Types.ObjectId;
+  senderId: Types.ObjectId;
+  type:
+    | "follow"
+    | "like_post"
+    | "like_reel"
+    | "comment"
+    | "reply"
+    | "message"
+    | "mention"
+    | "tag"
+    | "story"
+    | "like_story"
+    | "like_reply"
+    | "like_comment"
+    | "online_status";
+  message: string;
+  entityType: "post" | "reel" | "comment" | "message" | "user" | "conversation" | "story" | "reply";
+  entityId: Types.ObjectId;
+  isRead: boolean;
+  actionUrl?: string;
+  createdAt?: Date;
+  updatedAt?: Date;
+}
 
 export interface ServerToClientEvents {
-  'new-message': (message: IMessage) => void;
-  'user-online': (userId: string) => void;
-  'user-offline': (userId: string) => void;
-  'user-typing': (data: { userId: string; conversationId: string }) => void;
-  'user-stop-typing': (data: { userId: string; conversationId: string }) => void;
-  'conversation-created': (conversation: IConversation) => void;
-  'new-post': (post: IPost) => void;
-  'message-sent': (message: IMessage) => void;
-  'auth-error': (error: string) => void;
+  "new-message": (message: IMessage) => void;
+  "user-online": (userId: string) => void;
+  "user-offline": (userId: string) => void;
+  "user-typing": (data: { userId: string; conversationId: string }) => void;
+  "user-stop-typing": (data: {
+    userId: string;
+    conversationId: string;
+  }) => void;
+  "conversation-created": (conversation: IConversation) => void;
+  "new-post": (post: IPost) => void;
+  "message-sent": (message: IMessage) => void;
+  "auth-error": (error: string) => void;
 }
 
 export interface ClientToServerEvents {
   authenticate: (token: string) => void;
-  'join-conversation': (conversationId: string) => void;
-  'leave-conversation': (conversationId: string) => void;
-  'send-message': (messageData: {
+  "join-conversation": (conversationId: string) => void;
+  "leave-conversation": (conversationId: string) => void;
+  "send-message": (messageData: {
     conversationId: string;
     content: string;
-    type?: 'text' | 'image' | 'file';
+    type?: "text" | "image" | "file";
     replyTo?: string;
   }) => void;
-  'typing': (data: { conversationId: string }) => void;
-  'stop-typing': (data: { conversationId: string }) => void;
-  'join-room': (room: string) => void;
-  'leave-room': (room: string) => void;
+  typing: (data: { conversationId: string }) => void;
+  "stop-typing": (data: { conversationId: string }) => void;
+  "join-room": (room: string) => void;
+  "leave-room": (room: string) => void;
 }
-
-
