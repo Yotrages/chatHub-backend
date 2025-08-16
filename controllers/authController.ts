@@ -4,7 +4,6 @@ import jwt from "jsonwebtoken";
 import { User } from "../Models/User";
 import { Post } from "../Models/Post";
 import { HTTP_STATUS } from "../utils/constant";
-import { AuthRequest } from "../types";
 import cloudinary from "../config/cloudinary";
 import { Reels } from "../Models/Reels";
 import { UserSettings } from "../Models/userSettings";
