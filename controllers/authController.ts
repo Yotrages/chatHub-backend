@@ -155,13 +155,8 @@ export const login = async (
       });
     }
 
-    const user = await User.findOne({ email: email })
-      .select("-password")
-      .populate(
-        "followers",
-        "username name email bio followingCount followersCount avatar"
-      )
-      .populate("following", "username name email bio followingCount followersCount avatar");
+    const user = await User.findOne({ email: email });
+
     console.log("User found:", !!user);
 
     if (!user) {
@@ -187,6 +182,17 @@ export const login = async (
     user.online = true;
     await user.save();
 
+    const response = await User.findById(user._id)
+      .select("-password")
+      .populate(
+        "followers",
+        "username name email bio followingCount followersCount avatar"
+      )
+      .populate(
+        "following",
+        "username name email bio followingCount followersCount avatar"
+      );
+
     const token = jwt.sign(
       { userId: user._id, email: user.email },
       process.env.JWT_SECRET,
@@ -196,7 +202,7 @@ export const login = async (
     return res.json({
       message: "Login successful",
       token,
-      user,
+      user: response,
     });
   } catch (error: any) {
     console.error("Login error:", error);
@@ -478,12 +484,10 @@ const getMostFollowedUsers = async (req: Request, res: Response) => {
     res.status(200).json(mostFollowedUser);
   } catch (error) {
     console.error(error);
-    res
-      .status(500)
-      .json({
-        message:
-          "Server Error, You may have tpo try again, cux server connection",
-      });
+    res.status(500).json({
+      message:
+        "Server Error, You may have tpo try again, cux server connection",
+    });
   }
 };
 
