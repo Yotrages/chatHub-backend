@@ -101,7 +101,7 @@ export interface IConversation extends Document {
   description?: string;
   participants: string[];
   admins?: string[];
-  lastMessage?: string;
+  lastMessage?: Types.ObjectId;
   pinnedMessages: Types.ObjectId[];
   createdBy: {};
   createdAt: Date;

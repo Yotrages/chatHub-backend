@@ -3,13 +3,12 @@
   "version": "1.0.0",
   "main": "server.ts",
   "scripts": {
-    "build": "tsc",
-    "start": "node dist/server.js",
+    "start": "tsx server.ts",
     "dev": "tsx watch server.ts",
     "dev:node": "node --loader ts-node/esm server.ts",
-    "dev:alt": "ts-node --esm --experimental-specifier-resolution=node server.ts",
+    "dev:alt": "ts-node --esm --experimental-specifier-resolution=node server.ts", 
     "dev:watch": "nodemon --exec \"tsx\" server.ts",
-    "dev:build": "concurrently \"tsc --watch\" \"nodemon dist/server.js\"",
+    "build": "echo 'No build needed - using tsx directly'",
     "warning": "node --trace-warnings"
   },
   "keywords": [],

@@ -4,10 +4,6 @@ import express from 'express';
 import { createServer } from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 import { Server } from 'socket.io';
 import authRoutes from './routes/auth.js';
 import chatRoutes from './routes/chat.js';
@@ -26,8 +22,7 @@ import storiesRoutes from './routes/stories.js';
 import searchRoutes  from './routes/search.js'
 import userSettings from './routes/userSettings.js'
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+
 
 dotenv.config();
 
@@ -60,10 +55,6 @@ app.use((req, res, next) => {
   next();
 });
 
-const uploadsDir = path.join(__dirname, '..', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
 
 app.use(helmet({
   contentSecurityPolicy: {
@@ -104,7 +95,6 @@ passport.deserializeUser((user: any, done) => done(null, user));
 
 app.use(generalLimiter);
 
-app.use('/uploads', express.static(uploadsDir));
 
 app.get('/health', (req, res) => {
   res.status(HTTP_STATUS.OK).json({

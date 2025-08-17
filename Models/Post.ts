@@ -124,23 +124,23 @@ postSchema.index({ authorId: 1, createdAt: -1 });
 postSchema.index({ createdAt: -1 });
 
 // Middleware to update counts
-commentSchema.post('save', async function() {
-  if (this.isNew && !this.isDeleted) {
-    // Update post comment count
-    await mongoose.model('Post').findByIdAndUpdate(
-      this.dynamicId,
-      { $inc: { commentsCount: 1 } }
-    );
+// commentSchema.post('save', async function() {
+//   if (this.isNew && !this.isDeleted) {
+//     // Update post comment count
+//     await mongoose.model('Post').findByIdAndUpdate(
+//       this.dynamicId,
+//       { $inc: { commentsCount: 1 } }
+//     );
     
-    // Update parent comment reply count if it's a reply
-    if (this.parentCommentId) {
-      await mongoose.model('Comment').findByIdAndUpdate(
-        this.parentCommentId,
-        { $inc: { repliesCount: 1 } }
-      );
-    }
-  }
-});
+//     // Update parent comment reply count if it's a reply
+//     if (this.parentCommentId) {
+//       await mongoose.model('Comment').findByIdAndUpdate(
+//         this.parentCommentId,
+//         { $inc: { repliesCount: 1 } }
+//       );
+//     }
+//   }
+// });
 
 export const Comment = mongoose.model("Comment", commentSchema);
 export const Post = mongoose.model("Post", postSchema);

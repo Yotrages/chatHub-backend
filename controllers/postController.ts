@@ -2,13 +2,12 @@ import { Request, Response } from "express";
 import { Post, Comment } from "../Models/Post";
 import { AuthRequest } from "../types";
 import { User } from "../Models/User";
-import mongoose, { Types } from "mongoose";
+import mongoose from "mongoose";
 import { detectMentions, HTTP_STATUS } from "../utils/constant";
 import { NotificationService } from "../services/notificationServices";
 import { UserSettings } from "../Models/userSettings";
 
 export class PostsController {
-  // Get all posts (social feed)
   static async getPosts(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.user?.userId;
@@ -19,13 +18,11 @@ export class PostsController {
       let posts;
 
       if (userId) {
-        // Get the current user's following list
         const currentUser = await User.findById(userId).select("following");
         const followingIds = currentUser?.following || [];
-        const userSetting = await UserSettings.findOne({ userId: userId })
-        const blockedPosts = userSetting?.content.blockedPosts
+        const userSetting = await UserSettings.findOne({ userId: userId });
+        const blockedPosts = userSetting?.content.blockedPosts;
 
-        // Use aggregation to sort posts by following status
         const allPosts = await Post.aggregate([
           { $match: { isDeleted: false } },
           {
@@ -53,13 +50,12 @@ export class PostsController {
             },
           },
         ]);
-        
-        const unblockedPosts = allPosts.filter((post) => {
-          !blockedPosts?.some((item) => item.toString() === post._id)
-        })
 
-        posts = unblockedPosts
-        // Populate the aggregated results
+        const unblockedPosts = allPosts.filter((post) => {
+          !blockedPosts?.some((item) => item.toString() === post._id);
+        });
+
+        posts = unblockedPosts;
         await Post.populate(posts, [
           {
             path: "authorId",
@@ -82,7 +78,7 @@ export class PostsController {
       const totalPosts = await Post.countDocuments({ isDeleted: false });
       const totalPages = Math.ceil(totalPosts / limit);
 
-      res.json({
+      res.status(HTTP_STATUS.OK).json({
         success: true,
         posts,
         pagination: {
@@ -101,7 +97,6 @@ export class PostsController {
     }
   }
 
-  // Get comments for a specific post with nested structure
   static async getPostComments(req: Request, res: Response): Promise<void> {
     try {
       const { postId } = req.params;
@@ -109,7 +104,6 @@ export class PostsController {
       const limit = parseInt(req.query.limit as string) || 10;
       const skip = (page - 1) * limit;
 
-      // Get top-level comments (parentCommentId is null)
       const topLevelComments = await Comment.find({
         dynamicId: postId,
         parentCommentId: null,
@@ -121,7 +115,6 @@ export class PostsController {
         .skip(skip)
         .limit(limit);
 
-      // For each top-level comment, get its nested replies
       const commentsWithReplies = await Promise.all(
         topLevelComments.map(async (comment) => {
           const replies = await PostsController.getNestedReplies(
@@ -160,31 +153,29 @@ export class PostsController {
   }
 
   static async getSingleCommentReplies(req: Request, res: Response) {
-   try {
-     const { postId, commentId } = req.body;
+    try {
+      const { postId, commentId } = req.body;
 
-    const comment = await Comment.findOne({
-      _id: commentId,
-      dynamicId: postId,
-      parentCommentId: null,
-    });
-    if (!comment) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Comment not found" });
-      return;
+      const comment = await Comment.findOne({
+        _id: commentId,
+        dynamicId: postId,
+        parentCommentId: null,
+      });
+      if (!comment) {
+        res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Comment not found" });
+        return;
+      }
+      const replies = await PostsController.getNestedReplies(
+        comment._id.toString()
+      );
+
+      const response = { ...comment.toObject(), replies };
+      res.status(HTTP_STATUS.OK).json({ comment: response });
+    } catch (error: any) {
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error });
     }
-    const replies = await PostsController.getNestedReplies(
-      comment._id.toString()
-    );
-
-    const response = { ...comment.toObject(), replies };
-    res.status(HTTP_STATUS.OK).json({comment: response})
-   }
-   catch (error: any) {
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({error})
   }
-}
 
-  // Helper function to recursively get nested replies
   static async getNestedReplies(parentCommentId: string): Promise<any[]> {
     const replies = await Comment.find({
       parentCommentId,
@@ -192,9 +183,8 @@ export class PostsController {
     })
       .populate("authorId", "username name avatar")
       .populate("reactions.userId", "username name avatar")
-      .sort({ createdAt: 1 }); // Oldest first for replies
+      .sort({ createdAt: 1 });
 
-    // Recursively get nested replies for each reply
     const repliesWithNested = await Promise.all(
       replies.map(async (reply) => {
         const nestedReplies = await PostsController.getNestedReplies(
@@ -210,7 +200,6 @@ export class PostsController {
     return repliesWithNested;
   }
 
-  // Create new post
   static async createPost(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { content } = req.body;
@@ -224,7 +213,6 @@ export class PostsController {
         return;
       }
 
-      // Check if account is deactivated
       const userSettings = await UserSettings.findOne({ userId });
       if (userSettings?.account.isDeactivated) {
         res
@@ -240,7 +228,6 @@ export class PostsController {
         return;
       }
 
-      // Set visibility based on user settings
       const visibility = userSettings?.privacy.profileVisibility || "public";
 
       const imageUrls = files ? files.map((file) => file.path) : [];
@@ -255,16 +242,15 @@ export class PostsController {
       await post.save();
       await post.populate("authorId", "username name avatar");
       await User.findByIdAndUpdate(userId, {
-        $inc: { postsCount: 1}
-      })
-      // Notify mentioned users
+        $inc: { postsCount: 1 },
+      });
+
       if (content && userSettings?.notifications.inApp.mentioned) {
         const mentionedUserIds = await detectMentions(content);
         const sender = await User.findById(userId).select("username name");
         for (const mentionedUserId of mentionedUserIds) {
           let mentionedObjectId = new mongoose.Types.ObjectId(mentionedUserId);
           if (mentionedUserId !== userId) {
-            // Check if user is blocked
             const recipientSettings = await UserSettings.findOne({
               userId: mentionedObjectId,
             });
@@ -274,7 +260,7 @@ export class PostsController {
               ) ||
               userSettings?.security.blockedUsers.includes(mentionedObjectId)
             ) {
-              continue; // Skip notification if either user blocks the other
+              continue;
             }
 
             if (recipientSettings?.notifications.inApp.mentioned) {
@@ -307,7 +293,6 @@ export class PostsController {
     }
   }
 
-  // Create comment
   static async createComment(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { postId } = req.params;
@@ -328,7 +313,6 @@ export class PostsController {
         return;
       }
 
-      // If parentCommentId is provided, verify it exists
       if (parentCommentId) {
         const parentComment = await Comment.findById(parentCommentId);
         if (!parentComment) {
@@ -339,22 +323,29 @@ export class PostsController {
         }
       }
 
-     const newComment = new Comment({
-      dynamicId: postId,
-      parentCommentId: parentCommentId || null,
-      authorId,
-      content,
-      file: file ? file.path : undefined,
-      reactions: [],
-      isDeleted: false,
-      isEdited: false,
-      createdAt: new Date(),
-    });
+      const newComment = new Comment({
+        dynamicId: postId,
+        parentCommentId: parentCommentId || null,
+        authorId,
+        content,
+        file: file ? file.path : undefined,
+        reactions: [],
+        isDeleted: false,
+        isEdited: false,
+        createdAt: new Date(),
+      });
+
+      if (parentCommentId) {
+        await Comment.findByIdAndUpdate(parentCommentId, {
+          $inc: { repliesCount: 1 },
+        });
+      } else {
+        await Post.findByIdAndUpdate(postId, { $inc: { commentsCount: 1 } });
+      }
 
       await newComment.save();
       await newComment.populate("authorId", "username name avatar");
 
-      // Notify post author (if not self and it's a top-level comment)
       if (!parentCommentId && post.authorId.toString() !== authorId) {
         const sender = await User.findById(authorId).select("username name");
         await NotificationService.createNotification({
@@ -370,7 +361,6 @@ export class PostsController {
         });
       }
 
-      // Notify parent comment author (if it's a reply)
       if (parentCommentId) {
         const parentComment = await Comment.findById(parentCommentId);
         if (parentComment && parentComment.authorId.toString() !== authorId) {
@@ -389,7 +379,6 @@ export class PostsController {
         }
       }
 
-      // Notify mentioned users
       const mentionedUserIds = await detectMentions(content);
       const sender = await User.findById(authorId).select("username name");
       for (const mentionedUserId of mentionedUserIds) {
@@ -423,7 +412,6 @@ export class PostsController {
     }
   }
 
-  // Add reaction to post
   static async addReaction(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { postId } = req.params;
@@ -442,10 +430,8 @@ export class PostsController {
         res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Post not found" });
         return;
       }
-
       const userObjectId = new mongoose.Types.ObjectId(userId);
 
-      // Remove duplicates
       post.reactions = post.reactions.filter(
         (reaction, index, self) =>
           index ===
@@ -483,7 +469,6 @@ export class PostsController {
         isLiked = true;
         actionType = "added";
 
-        // Notify post author
         if (post.authorId.toString() !== userId) {
           const sender = await User.findById(userId).select("username name");
           await NotificationService.createNotification({
@@ -502,13 +487,13 @@ export class PostsController {
 
       await post.save();
       await post.populate("reactions.userId", "username name avatar");
-      const user = await User.findById(userId)
+      const user = await User.findById(userId);
       if (!user) {
-        res.status(HTTP_STATUS.NOT_FOUND).json({ error: "User not found"})
+        res.status(HTTP_STATUS.NOT_FOUND).json({ error: "User not found" });
         return;
       }
       if (!user.likedPost.includes(post._id)) {
-        user.likedPost.push(post._id)
+        user.likedPost.push(post._id);
         await user.save();
       }
 
@@ -528,7 +513,6 @@ export class PostsController {
     }
   }
 
-  // Add reaction to comment
   static async addCommentReaction(
     req: AuthRequest,
     res: Response
@@ -627,7 +611,6 @@ export class PostsController {
     }
   }
 
-  // Delete comment
   static async deleteComment(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { commentId } = req.params;
@@ -646,7 +629,6 @@ export class PostsController {
         return;
       }
 
-      // Soft delete
       comment.isDeleted = true;
       await comment.save();
 
@@ -662,7 +644,6 @@ export class PostsController {
     }
   }
 
-  // Update comment
   static async updateComment(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { commentId } = req.params;
@@ -760,7 +741,6 @@ export class PostsController {
     }
   }
 
-  // Delete post
   static async deletePost(req: AuthRequest, res: Response): Promise<void> {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -784,11 +764,9 @@ export class PostsController {
         return;
       }
 
-      // Soft delete the post
       post.isDeleted = true;
       await post.save({ session });
 
-      // Soft delete all comments related to this post
       await Comment.updateMany(
         { dynamicId: postId },
         { $set: { isDeleted: true } },
@@ -811,7 +789,7 @@ export class PostsController {
   static async updatePost(req: AuthRequest, res: Response) {
     const authorId = req.user?.userId;
     const { postId } = req.params;
-    const { content } = req.body;
+    const { content, existingImages } = req.body;
     const images = req.files as Express.Multer.File[];
 
     try {
@@ -844,7 +822,12 @@ export class PostsController {
       const updateData: any = {};
       if (content) updateData.content = content;
       if (images && images.length > 0) {
-        updateData.images = images.map((image) => image.path);
+        const newImages = images.map((image) => image.path);
+        if (existingImages && existingImages.length > 0) {
+          updateData.images = [...existingImages, ...newImages];
+        } else {
+          updateData.images = newImages;
+        }
       }
 
       const updatedPost = await Post.findByIdAndUpdate(postId, updateData, {
@@ -906,7 +889,7 @@ export class PostsController {
       const user = await User.findById(userId);
 
       if (!user) {
-        res.status(HTTP_STATUS.NOT_FOUND).json({error: "User not found"})
+        res.status(HTTP_STATUS.NOT_FOUND).json({ error: "User not found" });
         return;
       }
 

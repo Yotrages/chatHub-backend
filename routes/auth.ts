@@ -4,7 +4,7 @@ import { CloudinaryStorage } from 'multer-storage-cloudinary';
 import multer from 'multer';
 import cloudinary from '../config/cloudinary.js';
 import passport from 'passport';
-import handleOAuthCallback from '../controllers/o-Auth.js';
+import handleOAuthCallback from '../controllers/oAuthController.js';
 import { authenticateToken } from '../middleware/authMiddleware';
 const router = express.Router();
 

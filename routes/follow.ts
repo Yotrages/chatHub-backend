@@ -1,7 +1,7 @@
 // routes/follows.ts
 import express from 'express';
-import { FollowController } from '../controllers/follow';
-import { authenticateToken } from '../middleware/authMiddleware'; // Your auth middleware
+import { FollowController } from '../controllers/followController';
+import { authenticateToken } from '../middleware/authMiddleware';
 
 const router = express.Router();
 

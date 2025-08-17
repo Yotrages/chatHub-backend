@@ -1,5 +1,5 @@
 import express from "express";
-import { storiesController } from "../controllers/stories.js";
+import { storiesController } from "../controllers/storiesController.js";
 import { authenticateToken } from "../middleware/authMiddleware";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import cloudinary from "../config/cloudinary.js";

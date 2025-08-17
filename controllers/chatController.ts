@@ -1,4 +1,4 @@
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 import { Response } from "express";
 import { Conversation } from "../Models/Conversation";
 import { Message } from "../Models/Message";
@@ -951,7 +951,7 @@ export const getMessageInfo = async (
 
 export const sharePostToChat = async (req: AuthRequest, res: Response) => {
   const { conversationId, content, postId } = req.body;
-  const userId = req.user?.userId; // Assuming auth middleware sets req.user
+  const userId = req.user?.userId; 
   if (!userId) {
     res.status(HTTP_STATUS.UNAUTHORIZED);
     throw new Error("User not authenticated");
@@ -988,17 +988,15 @@ export const sharePostToChat = async (req: AuthRequest, res: Response) => {
 
   await message.save();
 
-  // Update conversation's last message
-  conversation.lastMessage = message._id;
+  conversation.lastMessage = new mongoose.Types.ObjectId(message._id);
   await conversation.save();
 
-  // Populate sender details for the response
   const populatedMessage = await Message.findById(message._id)
     .populate("senderId", "username avatar")
     .lean();
 
   const io = req.app.get("io");
-  // Emit socket event to notify participants
+
   if (io) {
     io.to(conversationId).emit("new_message", { message: populatedMessage });
   }
