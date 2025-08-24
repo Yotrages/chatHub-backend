@@ -43,7 +43,7 @@ router.post(
   storiesController.createStories
 );
 router.post("/reaction", authenticateToken, storiesController.storiesReaction);
-router.delete("/", authenticateToken, storiesController.deleteStories);
+router.delete("/delete/:storyId", authenticateToken, storiesController.deleteStories);
 router.get("/viewers/:storyId", authenticateToken, storiesController.getStoryViewers);
 router.post("/viewers/:storyId", authenticateToken, storiesController.setStoryViewers);
 router.get("/user", authenticateToken, storiesController.getUserStories);

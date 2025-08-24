@@ -58,7 +58,7 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
 
       // Create new user (registration)
       const newUser = await User.create({
-        name: profile.name,
+        username: profile.name,
         email: profile.email,
         providerId: profile.id,
         provider: provider,
@@ -72,8 +72,8 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
 
       // Redirect to success page after successful registration
       return res.redirect(
-        `${redirectBase}/${successRedirect}?token=${token}&type=register&id=${newUser._id}&name=${encodeURIComponent(
-          newUser.name || ""
+        `${redirectBase}/${successRedirect}?token=${token}&type=register&id=${newUser._id}&username=${encodeURIComponent(
+          newUser.username || ""
         )}&email=${encodeURIComponent(newUser.email)}&new=true`
       );
 
@@ -105,7 +105,7 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
 
       return res.redirect(
         `${redirectBase}/${successRedirect}?token=${token}&type=login&id=${existingUser._id}&name=${encodeURIComponent(
-          existingUser.name || ""
+          existingUser.username || ""
         )}&email=${encodeURIComponent(existingUser.email)}`
       );
     }

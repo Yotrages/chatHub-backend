@@ -163,7 +163,7 @@ export class FollowController {
         recipientId: follow.followerId.toString(),
         senderId: userId,
         type: 'follow',
-        message: `${recipient?.username || recipient?.name || 'Someone'} accepted your follow request`,
+        message: `${recipient?.username || 'Someone'} accepted your follow request`,
         entityType: 'user',
         entityId: userId,
         actionUrl: `/profile/${userId}`

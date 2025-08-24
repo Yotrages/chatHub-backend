@@ -110,7 +110,7 @@ export const createConversation = async (
           senderId: userId,
           type: "message",
           message: `${
-            sender?.username || sender?.name || "Someone"
+            sender?.username  || "Someone"
           } added you to a ${type} conversation`,
           entityType: "conversation",
           entityId: conversation._id,
@@ -254,7 +254,7 @@ export const sendMessage = async (
           senderId,
           type: "message",
           message: `${
-            sender?.username || sender?.name || "Someone"
+            sender?.username || "Someone"
           } sent a new message`,
           entityType: "message",
           entityId: message._id,
@@ -794,7 +794,7 @@ export const forwardMessage = async (
           senderId: userId,
           type: "message",
           message: `${
-            sender?.username || sender?.name || "Someone"
+            sender?.username || "Someone"
           } forwarded a message`,
           entityType: "message",
           entityId: forwardedMessage._id,

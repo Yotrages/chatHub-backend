@@ -5,7 +5,6 @@ import { Server as SocketIOServer } from 'socket.io';
 export interface IUser extends Document {
   _id: string;
   username?: string;
-  name?: string;
   email: string;
   password?: string;
   provider?: "google" | "github" | null;
@@ -55,7 +54,8 @@ export interface IMessage extends Document {
   }[];
 }
 
-export interface IReels {
+export interface IReels extends Document {
+  _id: Types.ObjectId;
   fileUrl: string;
   title: string;
   authorId: Types.ObjectId;
@@ -75,12 +75,13 @@ export interface IReels {
   isDeleted: boolean;
 }
 
-export interface IStories {
+export interface IStories extends Document {
   type: "video" | "image";
   fileType: string;
   viewers: Types.ObjectId[];
   fileUrl: string;
   text?: string;
+  textStyle?: string;
   viewedAt?: Date;
   authorId: Types.ObjectId;
   textPosition: {
@@ -134,21 +135,21 @@ export interface IComment extends Document {
   updatedAt?: Date;
 }
 
-export interface IReply extends Document {
-  authorId: Types.ObjectId;
-  content: string;
-  file?: string;
-  reactions: {
-    userId: string;
-    emoji: {
-      category: string;
-      name: string;
-    };
-  }[];
-  replies?: IReply[]; // This matches the embedded schema
-  createdAt?: Date;
-  updatedAt?: Date;
-}
+// export interface IReply extends Document {
+//   authorId: Types.ObjectId;
+//   content: string;
+//   file?: string;
+//   reactions: {
+//     userId: string;
+//     emoji: {
+//       category: string;
+//       name: string;
+//     };
+//   }[];
+//   replies?: IReply[]; // This matches the embedded schema
+//   createdAt?: Date;
+//   updatedAt?: Date;
+// }
 
 export interface IPost extends Document {
   _id: Types.ObjectId;

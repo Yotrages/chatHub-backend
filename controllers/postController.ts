@@ -269,7 +269,7 @@ export class PostsController {
                 senderId: userId,
                 type: "mention",
                 message: `${
-                  sender?.username || sender?.name || "Someone"
+                  sender?.username || "Someone"
                 } mentioned you in a post`,
                 entityType: "post",
                 entityId: post._id.toString(),
@@ -353,7 +353,7 @@ export class PostsController {
           senderId: authorId,
           type: "comment",
           message: `${
-            sender?.username || sender?.name || "Someone"
+            sender?.username || "Someone"
           } commented on your post`,
           entityType: "comment",
           entityId: newComment._id.toString(),
@@ -370,7 +370,7 @@ export class PostsController {
             senderId: authorId,
             type: "reply",
             message: `${
-              sender?.username || sender?.name || "Someone"
+              sender?.username || "Someone"
             } replied to your comment`,
             entityType: "comment",
             entityId: newComment._id.toString(),
@@ -388,7 +388,7 @@ export class PostsController {
             senderId: authorId,
             type: "mention",
             message: `${
-              sender?.username || sender?.name || "Someone"
+              sender?.username || "Someone"
             } mentioned you in a comment`,
             entityType: "comment",
             entityId: newComment._id.toString(),
@@ -476,7 +476,7 @@ export class PostsController {
             senderId: userId,
             type: "like_post",
             message: `${
-              sender?.username || sender?.name || "Someone"
+              sender?.username || "Someone"
             } reacted to your post`,
             entityType: "post",
             entityId: post._id.toString(),
@@ -583,7 +583,7 @@ export class PostsController {
             senderId: userId,
             type: "like_comment",
             message: `${
-              sender?.username || sender?.name || "Someone"
+              sender?.username || "Someone"
             } reacted to your comment`,
             entityType: "comment",
             entityId: comment._id.toString(),

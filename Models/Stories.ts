@@ -12,6 +12,9 @@ const storiesSchema = new Schema<IStories>({
     type: String,
     required: true
   },
+  textStyle: {
+    type: String,
+  },
   text: {
     type: String,
     sparse: true,

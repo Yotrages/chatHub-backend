@@ -258,6 +258,7 @@ export const UserSettings = mongoose.model<IUserSettings>('UserSettings', UserSe
 export interface IReport extends Document {
   reporterId: mongoose.Types.ObjectId;
   reportedUserId?: mongoose.Types.ObjectId;
+  reportedStoryId?: mongoose.Types.ObjectId;
   reportedPostId?: mongoose.Types.ObjectId;
   reportedCommentId?: mongoose.Types.ObjectId;
   reportType: 'spam' | 'harassment' | 'inappropriate_content' | 'fake_account' | 'copyright' | 'other';
@@ -285,6 +286,10 @@ const ReportSchema = new Schema<IReport>({
   reportedCommentId: {
     type: Schema.Types.ObjectId,
     ref: 'Comment'
+  },
+  reportedStoryId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Story'
   },
   reportType: {
     type: String,

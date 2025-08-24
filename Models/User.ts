@@ -11,11 +11,6 @@ const userSchema = new Schema<IUser>(
       minlength: [3, "Username must be at least 3 characters"],
       maxlength: [30, "Username cannot exceed 30 characters"],
     },
-    name: {
-      type: String,
-      trim: true,
-      maxlength: [50, "Name cannot exceed 50 characters"],
-    },
     email: {
       type: String,
       required: [true, "Email is required"],

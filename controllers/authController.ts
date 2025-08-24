@@ -284,12 +284,12 @@ export const getSuggestedUsers = async (req: Request, res: Response) => {
     }
     const users = await User.find()
       .select(
-        "username avatar name bio followers following followingCount followersCount email"
+        "-password"
       )
       .sort({ followersCount: -1 })
       .skip(skip)
       .limit(limit);
-    const exemptUser = users.filter((user) => user._id !== userId);
+    const exemptUser = users.filter((user) => user._id.toString() !== userId);
     const totalUser = await User.countDocuments();
     const totalPages = Math.ceil(totalUser / limit);
     res.status(HTTP_STATUS.OK).json({

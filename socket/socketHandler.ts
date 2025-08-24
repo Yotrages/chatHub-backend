@@ -533,7 +533,7 @@ export class SocketHandler {
               online &&
               participantSettings.notifications.inApp.onlineStatus
             ) {
-              const message = `${user.username || user.name || 'Someone'} is now online`;
+              const message = `${user.username || 'Someone'} is now online`;
               if (
                 !containsBlockedKeywords(message, participantSettings.content.blockedKeywords) &&
                 (participantSettings.content.showSensitiveContent || !isSensitiveContent(message))

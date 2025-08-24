@@ -1,5 +1,5 @@
-import mongoose, { Schema, Types } from "mongoose";
-import { IComment, IReels, IReply } from "../types";
+import mongoose, { Schema } from "mongoose";
+import { IComment, IReels } from "../types";
 
 const reactionSchema = new Schema({
   userId: {

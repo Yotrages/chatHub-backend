@@ -7,7 +7,6 @@ import multer from 'multer';
 import path from 'path';
 import { User } from '../Models/User';
 import { HTTP_STATUS } from '../utils/constant';
-import { schemas, validate } from '../middleware/validation';
 import { Post } from '../Models/Post';
 
 const router = express.Router();
@@ -374,6 +373,7 @@ router.post('/report', [
   body('reportedUserId').optional().isString(),
   body('reportedPostId').optional().isString(),
   body('reportedCommentId').optional().isString(),
+  body('reportedStoryId').optional().isString(),
   body('reportType').isIn(['spam', 'harassment', 'inappropriate_content', 'fake_account', 'copyright', 'other']),
   body('description').isString().isLength({ min: 10, max: 1000 })
 ], async (req: Request, res: Response) => {

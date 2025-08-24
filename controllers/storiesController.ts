@@ -61,7 +61,7 @@ export class storiesController {
   static async createStories(req: AuthRequest, res: Response) {
     try {
       const userId = req.user?.userId;
-      const { text, fileType = "video", textPosition, background } = req.body;
+      const { text, fileType = "video", textPosition, background, textStyle } = req.body;
       const file = req.file as Express.Multer.File;
 
       if (!userId) {
@@ -114,11 +114,12 @@ export class storiesController {
         fileType: fileType.toLowerCase(),
         text: text?.trim(),
         fileUrl: file ? file.path : "",
-        reactions: [], // Fixed: use reactions instead of likes
+        reactions: [], 
         viewers: [],
         authorId: userId,
         textPosition: parsedTextPosition,
         background: file ? "" : background || "",
+        textStyle: textStyle ? textStyle : "",
       });
 
       await newStories.save();
@@ -135,7 +136,7 @@ export class storiesController {
               senderId: userId,
               type: "mention",
               message: `${
-                sender?.username || sender?.name || "Someone"
+                sender?.username || "Someone"
               } mentioned you in a story`,
               entityType: "story",
               entityId: newStories._id.toString(),
@@ -211,7 +212,7 @@ export class storiesController {
             senderId: userId,
             type: "like_story",
             message: `${
-              sender?.username || sender?.name || "Someone"
+              sender?.username || "Someone"
             } liked your story`,
             entityType: "story",
             entityId: story._id.toString(),
@@ -288,6 +289,7 @@ export class storiesController {
       await Stories.findByIdAndDelete(storyId);
 
        res.status(HTTP_STATUS.OK).json({
+        storyId,
         success: true,
         message: "story deleted successfully",
       });

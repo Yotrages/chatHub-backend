@@ -10,7 +10,7 @@ export class ReelsController {
   // Get all reels (social feed)
   static async getReels(req: Request, res: Response): Promise<void> {
     try {
-      const userId = req.user?.userId; 
+      const userId = req.user?.userId;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 20;
       const skip = (page - 1) * limit;
@@ -19,7 +19,7 @@ export class ReelsController {
 
       if (userId) {
         // Get the current user's following list
-        const currentUser = await User.findById(userId).select('following');
+        const currentUser = await User.findById(userId).select("following");
         const followingIds = currentUser?.following || [];
 
         // Use aggregation to sort reels by following status
@@ -31,36 +31,36 @@ export class ReelsController {
                 $cond: {
                   if: { $in: ["$authorId", followingIds] },
                   then: 1,
-                  else: 0
-                }
-              }
-            }
+                  else: 0,
+                },
+              },
+            },
           },
           {
             $sort: {
               isFollowing: -1,
-              createdAt: -1
-            }
+              createdAt: -1,
+            },
           },
           { $skip: skip },
           { $limit: limit },
           {
             $project: {
-              isFollowing: 0
-            }
-          }
+              isFollowing: 0,
+            },
+          },
         ]);
 
         // Populate the aggregated results
         await Reels.populate(reels, [
           {
             path: "authorId",
-            select: "username name avatar"
+            select: "username name avatar",
           },
           {
             path: "reactions.userId",
-            select: "username name avatar"
-          }
+            select: "username name avatar",
+          },
         ]);
       } else {
         reels = await Reels.find({ isDeleted: false })
@@ -87,7 +87,9 @@ export class ReelsController {
       });
     } catch (error) {
       console.error("Get reels error:", error);
-      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Failed to fetch reels" });
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ error: "Failed to fetch reels" });
     }
   }
 
@@ -103,7 +105,7 @@ export class ReelsController {
       const topLevelComments = await ReelComment.find({
         dynamicId: reelId,
         parentCommentId: null,
-        isDeleted: false
+        isDeleted: false,
       })
         .populate("authorId", "username name avatar")
         .populate("reactions.userId", "username name avatar")
@@ -114,18 +116,20 @@ export class ReelsController {
       // For each top-level comment, get its nested replies
       const commentsWithReplies = await Promise.all(
         topLevelComments.map(async (comment) => {
-          const replies = await ReelsController.getNestedReplies(comment._id.toString());
+          const replies = await ReelsController.getNestedReplies(
+            comment._id.toString()
+          );
           return {
             ...comment.toObject(),
-            replies
+            replies,
           };
         })
       );
 
       const totalComments = await ReelComment.countDocuments({
-       dynamicId: reelId,
+        dynamicId: reelId,
         parentCommentId: null,
-        isDeleted: false
+        isDeleted: false,
       });
 
       res.json({
@@ -137,11 +141,13 @@ export class ReelsController {
           totalComments,
           hasNextPage: page < Math.ceil(totalComments / limit),
           hasPrevPage: page > 1,
-        }
+        },
       });
     } catch (error) {
       console.error("Get comments error:", error);
-      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Failed to fetch comments" });
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ error: "Failed to fetch comments" });
     }
   }
 
@@ -149,7 +155,7 @@ export class ReelsController {
   static async getNestedReplies(parentCommentId: string): Promise<any[]> {
     const replies = await ReelComment.find({
       parentCommentId,
-      isDeleted: false
+      isDeleted: false,
     })
       .populate("authorId", "username name avatar")
       .populate("reactions.userId", "username name avatar")
@@ -158,10 +164,12 @@ export class ReelsController {
     // Recursively get nested replies for each reply
     const repliesWithNested = await Promise.all(
       replies.map(async (reply) => {
-        const nestedReplies = await ReelsController.getNestedReplies(reply._id.toString());
+        const nestedReplies = await ReelsController.getNestedReplies(
+          reply._id.toString()
+        );
         return {
           ...reply.toObject(),
-          replies: nestedReplies
+          replies: nestedReplies,
         };
       })
     );
@@ -172,7 +180,7 @@ export class ReelsController {
   static async createReel(req: AuthRequest, res: Response) {
     try {
       const userId = req.user?.userId;
-      const { title } = req.body
+      const { title } = req.body;
       const file = req.file as Express.Multer.File;
 
       if (!userId) {
@@ -217,7 +225,6 @@ export class ReelsController {
     }
   }
 
-
   // Create comment
   static async createComment(req: AuthRequest, res: Response): Promise<void> {
     try {
@@ -227,7 +234,9 @@ export class ReelsController {
       const authorId = req.user?.userId;
 
       if (!content || !reelId || !authorId) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json({ error: "Missing required fields" });
+        res
+          .status(HTTP_STATUS.BAD_REQUEST)
+          .json({ error: "Missing required fields" });
         return;
       }
 
@@ -241,7 +250,9 @@ export class ReelsController {
       if (parentCommentId) {
         const parentComment = await ReelComment.findById(parentCommentId);
         if (!parentComment) {
-          res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Parent comment not found" });
+          res
+            .status(HTTP_STATUS.NOT_FOUND)
+            .json({ error: "Parent comment not found" });
           return;
         }
       }
@@ -265,9 +276,7 @@ export class ReelsController {
           recipientId: reel.authorId.toString(),
           senderId: authorId,
           type: "comment",
-          message: `${
-            sender?.username || sender?.name || "Someone"
-          } commented on your reel`,
+          message: `${sender?.username || "Someone"} commented on your reel`,
           entityType: "comment",
           entityId: newComment._id.toString(),
           actionUrl: `/reel/${reelId}#comment-${newComment._id}`,
@@ -283,9 +292,7 @@ export class ReelsController {
             recipientId: parentComment.authorId.toString(),
             senderId: authorId,
             type: "reply",
-            message: `${
-              sender?.username || sender?.name || "Someone"
-            } replied to your comment`,
+            message: `${sender?.username || "Someone"} replied to your comment`,
             entityType: "comment",
             entityId: newComment._id.toString(),
             actionUrl: `/reel/${reelId}#comment-${newComment._id}`,
@@ -303,7 +310,7 @@ export class ReelsController {
             senderId: authorId,
             type: "mention",
             message: `${
-              sender?.username || sender?.name || "Someone"
+              sender?.username || "Someone"
             } mentioned you in a comment`,
             entityType: "comment",
             entityId: newComment._id.toString(),
@@ -315,11 +322,15 @@ export class ReelsController {
       res.status(HTTP_STATUS.CREATED).json({
         success: true,
         comment: newComment,
-        message: parentCommentId ? "Reply added successfully" : "Comment added successfully"
+        message: parentCommentId
+          ? "Reply added successfully"
+          : "Comment added successfully",
       });
     } catch (error) {
       console.error("Create comment error:", error);
-      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Failed to create comment" });
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ error: "Failed to create comment" });
     }
   }
 
@@ -331,7 +342,9 @@ export class ReelsController {
       const userId = req.user?.userId;
 
       if (!userId) {
-        res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
+        res
+          .status(HTTP_STATUS.UNAUTHORIZED)
+          .json({ error: "User not authenticated" });
         return;
       }
 
@@ -346,11 +359,14 @@ export class ReelsController {
       // Remove duplicates
       reel.reactions = reel.reactions.filter(
         (reaction, index, self) =>
-          index === self.findIndex(r => r.userId.toString() === reaction.userId.toString())
+          index ===
+          self.findIndex(
+            (r) => r.userId.toString() === reaction.userId.toString()
+          )
       );
 
       const existingReactionIndex = reel.reactions.findIndex(
-        r => r.userId.toString() === userObjectId.toString()
+        (r) => r.userId.toString() === userObjectId.toString()
       );
 
       let isLiked = false;
@@ -363,7 +379,10 @@ export class ReelsController {
           isLiked = false;
           actionType = "removed";
         } else {
-          reel.reactions[existingReactionIndex].emoji = { category: emoji, name };
+          reel.reactions[existingReactionIndex].emoji = {
+            category: emoji,
+            name,
+          };
           isLiked = true;
           actionType = "updated";
         }
@@ -382,9 +401,7 @@ export class ReelsController {
             recipientId: reel.authorId.toString(),
             senderId: userId,
             type: "like_reel",
-            message: `${
-              sender?.username || sender?.name || "Someone"
-            } reacted to your reel`,
+            message: `${sender?.username || "Someone"} reacted to your reel`,
             entityType: "reel",
             entityId: reel._id.toString(),
             actionUrl: `/reel/${reel._id}`,
@@ -405,19 +422,26 @@ export class ReelsController {
       });
     } catch (error) {
       console.error("Toggle reaction error:", error);
-      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Server error" });
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ error: "Server error" });
     }
   }
 
   // Add reaction to comment
-  static async addCommentReaction(req: AuthRequest, res: Response): Promise<void> {
+  static async addCommentReaction(
+    req: AuthRequest,
+    res: Response
+  ): Promise<void> {
     try {
       const { commentId } = req.params;
       const { emoji, name } = req.body;
       const userId = req.user?.userId;
 
       if (!userId) {
-        res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
+        res
+          .status(HTTP_STATUS.UNAUTHORIZED)
+          .json({ error: "User not authenticated" });
         return;
       }
 
@@ -432,11 +456,14 @@ export class ReelsController {
       // Remove duplicates
       comment.reactions = comment.reactions.filter(
         (reaction, index, self) =>
-          index === self.findIndex(r => r.userId.toString() === reaction.userId.toString())
+          index ===
+          self.findIndex(
+            (r) => r.userId.toString() === reaction.userId.toString()
+          )
       );
 
       const existingReactionIndex = comment.reactions.findIndex(
-        r => r.userId.toString() === userObjectId.toString()
+        (r) => r.userId.toString() === userObjectId.toString()
       );
 
       let isLiked = false;
@@ -449,7 +476,10 @@ export class ReelsController {
           isLiked = false;
           actionType = "removed";
         } else {
-          comment.reactions[existingReactionIndex].emoji = { category: emoji, name };
+          comment.reactions[existingReactionIndex].emoji = {
+            category: emoji,
+            name,
+          };
           isLiked = true;
           actionType = "updated";
         }
@@ -468,9 +498,7 @@ export class ReelsController {
             recipientId: comment.authorId.toString(),
             senderId: userId,
             type: "like_comment",
-            message: `${
-              sender?.username || sender?.name || "Someone"
-            } reacted to your comment`,
+            message: `${sender?.username || "Someone"} reacted to your comment`,
             entityType: "comment",
             entityId: comment._id.toString(),
             actionUrl: `/reel/${comment.dynamicId}#comment-${comment._id}`,
@@ -491,7 +519,9 @@ export class ReelsController {
       });
     } catch (error) {
       console.error("Toggle comment reaction error:", error);
-      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Server error" });
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ error: "Server error" });
     }
   }
 
@@ -508,7 +538,9 @@ export class ReelsController {
       }
 
       if (comment.authorId.toString() !== userId) {
-        res.status(HTTP_STATUS.FORBIDDEN).json({ error: "Not authorized to delete this comment" });
+        res
+          .status(HTTP_STATUS.FORBIDDEN)
+          .json({ error: "Not authorized to delete this comment" });
         return;
       }
 
@@ -518,11 +550,13 @@ export class ReelsController {
 
       res.json({
         success: true,
-        message: "Comment deleted successfully"
+        message: "Comment deleted successfully",
       });
     } catch (error) {
       console.error("Delete comment error:", error);
-      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Failed to delete comment" });
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ error: "Failed to delete comment" });
     }
   }
 
@@ -534,7 +568,9 @@ export class ReelsController {
       const userId = req.user?.userId;
 
       if (!content) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json({ error: "Content is required" });
+        res
+          .status(HTTP_STATUS.BAD_REQUEST)
+          .json({ error: "Content is required" });
         return;
       }
 
@@ -545,7 +581,9 @@ export class ReelsController {
       }
 
       if (comment.authorId.toString() !== userId) {
-        res.status(HTTP_STATUS.FORBIDDEN).json({ error: "Not authorized to update this comment" });
+        res
+          .status(HTTP_STATUS.FORBIDDEN)
+          .json({ error: "Not authorized to update this comment" });
         return;
       }
 
@@ -558,11 +596,13 @@ export class ReelsController {
       res.json({
         success: true,
         comment,
-        message: "Comment updated successfully"
+        message: "Comment updated successfully",
       });
     } catch (error) {
       console.error("Update comment error:", error);
-      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Failed to update comment" });
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ error: "Failed to update comment" });
     }
   }
 
@@ -570,7 +610,7 @@ export class ReelsController {
   static async getSingleReel(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
-      
+
       const reel = await Reels.findById(id)
         .populate("authorId", "username name avatar")
         .populate("reactions.userId", "username name avatar");
@@ -584,7 +624,7 @@ export class ReelsController {
       const topLevelComments = await ReelComment.find({
         dynamicId: id,
         parentCommentId: null,
-        isDeleted: false
+        isDeleted: false,
       })
         .populate("authorId", "username name avatar")
         .populate("reactions.userId", "username name avatar")
@@ -593,10 +633,12 @@ export class ReelsController {
       // Get nested replies for each comment
       const commentsWithReplies = await Promise.all(
         topLevelComments.map(async (comment) => {
-          const replies = await ReelsController.getNestedReplies(comment._id.toString());
+          const replies = await ReelsController.getNestedReplies(
+            comment._id.toString()
+          );
           return {
             ...comment.toObject(),
-            replies
+            replies,
           };
         })
       );
@@ -605,12 +647,14 @@ export class ReelsController {
         success: true,
         reel: {
           ...reel.toObject(),
-          comments: commentsWithReplies
-        }
+          comments: commentsWithReplies,
+        },
       });
     } catch (error) {
       console.error("Get single reel error:", error);
-      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Failed to fetch reel" });
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ error: "Failed to fetch reel" });
     }
   }
 
@@ -632,7 +676,9 @@ export class ReelsController {
 
       if (reel.authorId.toString() !== userId) {
         await session.abortTransaction();
-        res.status(HTTP_STATUS.FORBIDDEN).json({ error: "Not authorized to delete this reel" });
+        res
+          .status(HTTP_STATUS.FORBIDDEN)
+          .json({ error: "Not authorized to delete this reel" });
         return;
       }
 
@@ -648,114 +694,130 @@ export class ReelsController {
       );
 
       await session.commitTransaction();
-      res.status(HTTP_STATUS.OK).json({ message: "Reels deleted successfully" });
+      res
+        .status(HTTP_STATUS.OK)
+        .json({ message: "Reels deleted successfully" });
     } catch (error) {
       await session.abortTransaction();
       console.error("Delete reel error:", error);
-      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Failed to delete reel" });
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ error: "Failed to delete reel" });
     } finally {
       session.endSession();
     }
   }
 
   static async updateReels(req: AuthRequest, res: Response) {
-      const authorId = req.user?.userId;
-      const { reelId } = req.params;
-      const { content } = req.body;
-      const images = req.files as Express.Multer.File[];
-  
-      try {
-        if (!authorId) {
-          res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
-          return;
-        }
-  
-        if (!content && (!images || images.length === 0)) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json({ error: "Reels must have content or images" });
-          return;
-        }
-  
-        const reel = await Reels.findOne({ _id: reelId });
-        if (!reel) {
-          res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Reels not found" });
-          return;
-        }
-        if (reel.authorId.toString() !== authorId) {
-          res
-            .status(HTTP_STATUS.FORBIDDEN)
-            .json({ message: "You are not authorized to update this Reels" });
-          return;
-        }
-  
-        const updateData: any = {};
-        if (content) updateData.content = content;
-        if (images && images.length > 0) {
-          updateData.images = images.map((image) => image.path);
-        }
-  
-        const updatedReels = await Reels.findByIdAndUpdate(reelId, updateData, {
-          new: true,
-        }).populate("authorId", "username avatar");
-        res.status(HTTP_STATUS.OK).json({ Reels: updatedReels, _id: updatedReels?._id });
-      } catch (error: any) {
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: "Server Error" });
+    const authorId = req.user?.userId;
+    const { reelId } = req.params;
+    const { content } = req.body;
+    const images = req.files as Express.Multer.File[];
+
+    try {
+      if (!authorId) {
+        res
+          .status(HTTP_STATUS.UNAUTHORIZED)
+          .json({ error: "User not authenticated" });
+        return;
       }
+
+      if (!content && (!images || images.length === 0)) {
+        res
+          .status(HTTP_STATUS.BAD_REQUEST)
+          .json({ error: "Reels must have content or images" });
+        return;
+      }
+
+      const reel = await Reels.findOne({ _id: reelId });
+      if (!reel) {
+        res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Reels not found" });
+        return;
+      }
+      if (reel.authorId.toString() !== authorId) {
+        res
+          .status(HTTP_STATUS.FORBIDDEN)
+          .json({ message: "You are not authorized to update this Reels" });
+        return;
+      }
+
+      const updateData: any = {};
+      if (content) updateData.content = content;
+      if (images && images.length > 0) {
+        updateData.images = images.map((image) => image.path);
+      }
+
+      const updatedReels = await Reels.findByIdAndUpdate(reelId, updateData, {
+        new: true,
+      }).populate("authorId", "username avatar");
+      res
+        .status(HTTP_STATUS.OK)
+        .json({ Reels: updatedReels, _id: updatedReels?._id });
+    } catch (error: any) {
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ message: "Server Error" });
+    }
+  }
+
+  static async trackReelShare(req: AuthRequest, res: Response) {
+    const { reelId } = req.body;
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(HTTP_STATUS.UNAUTHORIZED);
+      throw new Error("User not authenticated");
     }
 
-    static async trackReelShare(req: AuthRequest, res: Response) {
-        const { reelId } = req.body;
-        const userId = req.user?.userId;
-    
-        if (!userId) {
-          res.status(HTTP_STATUS.UNAUTHORIZED);
-          throw new Error("User not authenticated");
-        }
-    
-        if (!reelId) {
-          res.status(HTTP_STATUS.BAD_REQUEST);
-          throw new Error("Reelss ID is required");
-        }
-    
-        const reels = await Reels.findById(reelId);
-        if (!reels) {
-          res.status(HTTP_STATUS.NOT_FOUND);
-          throw new Error("Reelss not found");
-        }
-    
-        reels.shareCount = (reels.shareCount || 0) + 1;
-        await reels.save();
-    
-        res.status(HTTP_STATUS.OK).json({ shareCount: reels.shareCount });
-      }
-    
-      static async saveReel(req: AuthRequest, res: Response) {
-          const { id } = req.params;
-          const userId = req.user?.userId;
-      
-          try {
-            if (!userId) {
-              res.status(HTTP_STATUS.FORBIDDEN).json({ error: "You are not authenticated" });
-              return;
-            }
-            const reel = await Reels.findOne({ _id: id });
-            if (!reel) {
-              res.status(HTTP_STATUS.BAD_REQUEST).json({ error: "Reelss not found" });
-              return;
-            }
-      
-            const user = await User.findById(userId);
-      
-            user?.savedReel.push(reel._id);
-            await user?.save();
-            res.status(HTTP_STATUS.OK).json({
-              success: true,
-              reel,
-            });
-            return;
-          } catch (error) {
-            res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Internal server error" });
-          }
-        }
-      
+    if (!reelId) {
+      res.status(HTTP_STATUS.BAD_REQUEST);
+      throw new Error("Reelss ID is required");
+    }
 
+    const reels = await Reels.findById(reelId);
+    if (!reels) {
+      res.status(HTTP_STATUS.NOT_FOUND);
+      throw new Error("Reelss not found");
+    }
+
+    reels.shareCount = (reels.shareCount || 0) + 1;
+    await reels.save();
+
+    res.status(HTTP_STATUS.OK).json({ shareCount: reels.shareCount });
+  }
+
+  static async saveReel(req: AuthRequest, res: Response) {
+    const { id } = req.params;
+    const userId = req.user?.userId;
+
+    try {
+      if (!userId) {
+        res
+          .status(HTTP_STATUS.FORBIDDEN)
+          .json({ error: "You are not authenticated" });
+        return;
+      }
+      const reel = await Reels.findOne({ _id: id });
+      if (!reel) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({ error: "Reelss not found" });
+        return;
+      }
+
+      const user = await User.findById(userId);
+
+      if (!user.savedReel.includes(reel._id)) {
+        user.savedReel.push(reel._id);
+        await user.save();
+      }
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        reel,
+      });
+      return;
+    } catch (error) {
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ error: "Internal server error" });
+    }
+  }
 }

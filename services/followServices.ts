@@ -57,11 +57,11 @@ export class FollowService {
         senderId: followerId,
         type: "follow",
         message: `${
-          follower?.username || follower?.name
+          follower?.username || "Someone"
         } started following you`,
         entityType: "user",
         entityId: followerId,
-        actionUrl: `/profile/${follower?.username || followerId}`,
+        actionUrl: `/profile/${followerId}`,
       });
 
       return follow;
