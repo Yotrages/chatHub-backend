@@ -5,6 +5,7 @@ import { User } from "../Models/User";
 import mongoose, { Types } from "mongoose";
 import { detectMentions, HTTP_STATUS } from "../utils/constant";
 import { NotificationService } from "../services/notificationServices";
+import { UserSettings } from "../Models/userSettings";
 
 export class ReelsController {
   // Get all reels (social feed)
@@ -151,6 +152,30 @@ export class ReelsController {
     }
   }
 
+   static async getSingleCommentReplies(req: Request, res: Response) {
+      try {
+        const { reelId, commentId } = req.body;
+  
+        const comment = await ReelComment.findOne({
+          _id: commentId,
+          dynamicId: reelId,
+          parentCommentId: null,
+        });
+        if (!comment) {
+          res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Comment not found" });
+          return;
+        }
+        const replies = await ReelsController.getNestedReplies(
+          comment._id.toString()
+        );
+  
+        const response = { ...comment.toObject(), replies };
+        res.status(HTTP_STATUS.OK).json({ comment: response });
+      } catch (error: any) {
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error });
+      }
+    }
+
   // Helper function to recursively get nested replies
   static async getNestedReplies(parentCommentId: string): Promise<any[]> {
     const replies = await ReelComment.find({
@@ -191,6 +216,14 @@ export class ReelsController {
         return;
       }
 
+        const userSettings = await UserSettings.findOne({ userId });
+            if (userSettings?.account.isDeactivated) {
+              res
+                .status(HTTP_STATUS.FORBIDDEN)
+                .json({ error: "Cannot create reel: Account is deactivated" });
+              return;
+            }
+
       if (!file) {
         res.status(HTTP_STATUS.BAD_REQUEST).json({
           success: false,
@@ -198,13 +231,14 @@ export class ReelsController {
         });
         return;
       }
-
+      
+      const visibility = userSettings?.privacy.profileVisibility || "public";
       const newReels = new Reels({
         fileUrl: file.path,
         title,
         reactions: [],
         authorId: userId,
-        comments: [],
+        visibility
       });
 
       await newReels.save();
@@ -212,7 +246,7 @@ export class ReelsController {
 
       res.status(HTTP_STATUS.CREATED).json({
         success: true,
-        data: newReels,
+        reel: newReels,
         message: "Reel created successfully",
       });
     } catch (error: any) {
@@ -264,6 +298,9 @@ export class ReelsController {
         content,
         file: file ? file.path : undefined,
         reactions: [],
+        isDeleted: false,
+        isEdited: false,
+        createdAt: new Date(),
       });
 
       await newComment.save();

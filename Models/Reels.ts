@@ -79,7 +79,6 @@ const reelsSchema = new Schema<IReels>(
       required: true,
     },
     reactions: [reactionSchema],
-    comments: [commentSchema],
     shareCount: { type: Number, default: 0 },
     commentsCount: {
     type: Number,
@@ -104,23 +103,23 @@ commentSchema.index({ authorId: 1 });
 
 reelsSchema.index({ authorId: 1, createdAt: -1 });
 
-commentSchema.post('save', async function() {
-  if (this.isNew && !this.isDeleted) {
-    // Update post comment count
-    await mongoose.model('Reels').findByIdAndUpdate(
-      this.dynamicId,
-      { $inc: { commentsCount: 1 } }
-    );
+// commentSchema.post('save', async function() {
+//   if (this.isNew && !this.isDeleted) {
+//     // Update post comment count
+//     await mongoose.model('Reels').findByIdAndUpdate(
+//       this.dynamicId,
+//       { $inc: { commentsCount: 1 } }
+//     );
     
-    // Update parent comment reply count if it's a reply
-    if (this.parentCommentId) {
-      await mongoose.model('Comment').findByIdAndUpdate(
-        this.parentCommentId,
-        { $inc: { repliesCount: 1 } }
-      );
-    }
-  }
-});
+//     // Update parent comment reply count if it's a reply
+//     if (this.parentCommentId) {
+//       await mongoose.model('Comment').findByIdAndUpdate(
+//         this.parentCommentId,
+//         { $inc: { repliesCount: 1 } }
+//       );
+//     }
+//   }
+// });
 
 export const ReelComment = mongoose.model("ReelComment", commentSchema);
 export const Reels = mongoose.model("Reels", reelsSchema);
