@@ -21,6 +21,7 @@ import reelsRoutes from './routes/reels.js';
 import storiesRoutes from './routes/stories.js';
 import searchRoutes  from './routes/search.js'
 import userSettings from './routes/userSettings.js'
+import memoryThreads from './routes/memoryThreads.js'
 
 
 
@@ -115,7 +116,8 @@ app.use('/api/follows', followRoutes);
 app.use('/api/reels', reelsRoutes);
 app.use('/api/stories', storiesRoutes);
 app.use('/api/search', searchRoutes)
-app.use('api/settings', userSettings)
+app.use('/api/settings', userSettings)
+app.use('/api', memoryThreads)
 
 // Catch all for undefined routes
 app.use('*', (req, res) => {
