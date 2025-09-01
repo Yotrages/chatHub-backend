@@ -51,7 +51,7 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
     
     res.json(settings);
   } catch (error) {
-    console.error(error);
+    console.error('Error fetching user settings:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Server error' });
   }
 });
@@ -68,30 +68,49 @@ router.put('/privacy', [
 ], async (req: Request, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-   res.status(HTTP_STATUS.BAD_REQUEST).json({ errors: errors.array() });
-   return;
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ errors: errors.array() });
+    return;
   }
   
   try {
+    console.log('Updating privacy settings for user:', req.user?.userId);
+    console.log('Privacy update data:', req.body);
+    
+    // Build the update object with dot notation for nested fields
+    const updateFields: any = {};
+    Object.keys(req.body).forEach(key => {
+      updateFields[`privacy.${key}`] = req.body[key];
+    });
+
+    console.log('Update fields being sent to MongoDB:', updateFields);
+    
     const settings = await UserSettings.findOneAndUpdate(
       { userId: req.user?.userId },
-      { $set: { privacy: req.body } },
-      { new: true, upsert: true }
+      { $set: updateFields },
+      { new: true, upsert: true, runValidators: true }
     );
 
-    const userPrivacy = settings.privacy.profileVisibility
+    if (!settings) {
+      res.status(404).json({ message: 'Failed to update settings' });
+      return;
+    }
 
-    const user = await User.findById(req.user?.userId)
+    console.log('Updated privacy settings:', settings.privacy);
 
-  
-    if (user && userPrivacy === "private") {
-      user.isPrivate = true
-      await user.save()
+    // Handle user privacy flag update
+    const userPrivacy = settings.privacy?.profileVisibility;
+    if (userPrivacy) {
+      const user = await User.findById(req.user?.userId);
+      if (user) {
+        user.isPrivate = userPrivacy === "private";
+        await user.save();
+        console.log('Updated user privacy flag:', user.isPrivate);
+      }
     }
     
-    res.json(settings);
+    res.status(200).json(settings);
   } catch (error) {
-    console.error(error);
+    console.error('Error updating privacy settings:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Server error' });
   }
 });
@@ -105,20 +124,41 @@ router.put('/notifications', [
 ], async (req: Request, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-   res.status(HTTP_STATUS.BAD_REQUEST).json({ errors: errors.array() });
-   return;
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ errors: errors.array() });
+    return;
   }
   
   try {
+    console.log('Updating notification settings for user:', req.user?.userId);
+    console.log('Notification update data:', req.body);
+    
+    // Build the update object with dot notation for nested fields
+    const updateFields: any = {};
+    Object.keys(req.body).forEach(category => {
+      if (req.body[category] && typeof req.body[category] === 'object') {
+        Object.keys(req.body[category]).forEach(setting => {
+          updateFields[`notifications.${category}.${setting}`] = req.body[category][setting];
+        });
+      }
+    });
+
+    console.log('Update fields being sent to MongoDB:', updateFields);
+    
     const settings = await UserSettings.findOneAndUpdate(
       { userId: req.user?.userId },
-      { $set: { notifications: req.body } },
-      { new: true, upsert: true }
+      { $set: updateFields },
+      { new: true, upsert: true, runValidators: true }
     );
     
+    if (!settings) {
+      res.status(404).json({ message: 'Failed to update settings' });
+      return;
+    }
+
+    console.log('Updated notification settings:', settings.notifications);
     res.json(settings);
   } catch (error) {
-    console.error(error);
+    console.error('Error updating notification settings:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Server error' });
   }
 });
@@ -133,20 +173,37 @@ router.put('/appearance', [
 ], async (req: Request, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-     res.status(HTTP_STATUS.BAD_REQUEST).json({ errors: errors.array() });
-     return;
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ errors: errors.array() });
+    return;
   }
   
   try {
+    console.log('Updating appearance settings for user:', req.user?.userId);
+    console.log('Appearance update data:', req.body);
+    
+    // Build the update object with dot notation for nested fields
+    const updateFields: any = {};
+    Object.keys(req.body).forEach(key => {
+      updateFields[`appearance.${key}`] = req.body[key];
+    });
+
+    console.log('Update fields being sent to MongoDB:', updateFields);
+    
     const settings = await UserSettings.findOneAndUpdate(
       { userId: req.user?.userId },
-      { $set: { appearance: req.body } },
-      { new: true, upsert: true }
+      { $set: updateFields },
+      { new: true, upsert: true, runValidators: true }
     );
     
+    if (!settings) {
+      res.status(404).json({ message: 'Failed to update settings' });
+      return;
+    }
+
+    console.log('Updated appearance settings:', settings.appearance);
     res.json(settings);
   } catch (error) {
-    console.error(error);
+    console.error('Error updating appearance settings:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Server error' });
   }
 });
@@ -159,17 +216,26 @@ router.post('/background', [authenticateToken, upload.single('background')], asy
       return;
     }
     
+    console.log('Uploading background for user:', req.user?.userId);
+    console.log('Uploaded file:', req.file.filename);
+    
     const backgroundImage = `/uploads/backgrounds/${req.file.filename}`;
     
     const settings = await UserSettings.findOneAndUpdate(
       { userId: req.user?.userId },
       { $set: { 'appearance.backgroundImage': backgroundImage } },
-      { new: true, upsert: true }
+      { new: true, upsert: true, runValidators: true }
     );
     
+    if (!settings) {
+      res.status(404).json({ message: 'Failed to update background' });
+      return;
+    }
+
+    console.log('Updated background image:', backgroundImage);
     res.json({ backgroundImage, settings });
   } catch (error) {
-    console.error(error);
+    console.error('Error uploading background:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Server error' });
   }
 });
@@ -183,20 +249,37 @@ router.put('/security', [
 ], async (req: Request, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-   res.status(HTTP_STATUS.BAD_REQUEST).json({ errors: errors.array() });
-   return;
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ errors: errors.array() });
+    return;
   }
   
   try {
+    console.log('Updating security settings for user:', req.user?.userId);
+    console.log('Security update data:', req.body);
+    
+    // Build the update object with dot notation for nested fields
+    const updateFields: any = {};
+    Object.keys(req.body).forEach(key => {
+      updateFields[`security.${key}`] = req.body[key];
+    });
+
+    console.log('Update fields being sent to MongoDB:', updateFields);
+    
     const settings = await UserSettings.findOneAndUpdate(
       { userId: req.user?.userId },
-      { $set: { security: { ...req.body } } },
-      { new: true, upsert: true }
+      { $set: updateFields },
+      { new: true, upsert: true, runValidators: true }
     );
     
+    if (!settings) {
+      res.status(404).json({ message: 'Failed to update settings' });
+      return;
+    }
+
+    console.log('Updated security settings:', settings.security);
     res.json(settings);
   } catch (error) {
-    console.error(error);
+    console.error('Error updating security settings:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Server error' });
   }
 });
@@ -208,22 +291,29 @@ router.post('/block-user', [
 ], async (req: Request, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-   res.status(HTTP_STATUS.BAD_REQUEST).json({ errors: errors.array() });
-   return;
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ errors: errors.array() });
+    return;
   }
   
   try {
     const { userId } = req.body;
     
+    console.log('Blocking user:', userId, 'for user:', req.user?.userId);
+    
     const settings = await UserSettings.findOneAndUpdate(
       { userId: req.user?.userId },
       { $addToSet: { 'security.blockedUsers': userId } },
-      { new: true, upsert: true }
+      { new: true, upsert: true, runValidators: true }
     );
     
+    if (!settings) {
+      res.status(404).json({ message: 'Failed to block user' });
+      return;
+    }
+
     res.json(settings);
   } catch (error) {
-    console.error(error);
+    console.error('Error blocking user:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Server error' });
   }
 });
@@ -233,15 +323,22 @@ router.delete('/unblock-user/:userId', authenticateToken, async (req: Request, r
   try {
     const { userId } = req.params;
     
+    console.log('Unblocking user:', userId, 'for user:', req.user?.userId);
+    
     const settings = await UserSettings.findOneAndUpdate(
       { userId: req.user?.userId },
       { $pull: { 'security.blockedUsers': userId } },
-      { new: true }
+      { new: true, runValidators: true }
     );
+    
+    if (!settings) {
+      res.status(404).json({ message: 'User settings not found' });
+      return;
+    }
     
     res.json(settings);
   } catch (error) {
-    console.error(error);
+    console.error('Error unblocking user:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Server error' });
   }
 });
@@ -256,20 +353,37 @@ router.put('/content', [
 ], async (req: Request, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-     res.status(HTTP_STATUS.BAD_REQUEST).json({ errors: errors.array() });
-     return;
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ errors: errors.array() });
+    return;
   }
   
   try {
+    console.log('Updating content settings for user:', req.user?.userId);
+    console.log('Content update data:', req.body);
+    
+    // Build the update object with dot notation for nested fields
+    const updateFields: any = {};
+    Object.keys(req.body).forEach(key => {
+      updateFields[`content.${key}`] = req.body[key];
+    });
+
+    console.log('Update fields being sent to MongoDB:', updateFields);
+    
     const settings = await UserSettings.findOneAndUpdate(
       { userId: req.user?.userId },
-      { $set: { content: req.body } },
-      { new: true, upsert: true }
+      { $set: updateFields },
+      { new: true, upsert: true, runValidators: true }
     );
     
+    if (!settings) {
+      res.status(404).json({ message: 'Failed to update settings' });
+      return;
+    }
+
+    console.log('Updated content settings:', settings.content);
     res.json(settings);
   } catch (error) {
-    console.error(error);
+    console.error('Error updating content settings:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Server error' });
   }
 });
@@ -277,6 +391,8 @@ router.put('/content', [
 // POST /api/settings/deactivate - Deactivate account
 router.post('/deactivate', authenticateToken, async (req: Request, res: Response) => {
   try {
+    console.log('Deactivating account for user:', req.user?.userId);
+    
     const settings = await UserSettings.findOneAndUpdate(
       { userId: req.user?.userId },
       { 
@@ -285,12 +401,17 @@ router.post('/deactivate', authenticateToken, async (req: Request, res: Response
           'account.deactivatedAt': new Date()
         }
       },
-      { new: true, upsert: true }
+      { new: true, upsert: true, runValidators: true }
     );
+    
+    if (!settings) {
+      res.status(404).json({ message: 'Failed to deactivate account' });
+      return;
+    }
     
     res.json({ message: 'Account deactivated successfully', settings });
   } catch (error) {
-    console.error(error);
+    console.error('Error deactivating account:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Server error' });
   }
 });
@@ -298,6 +419,8 @@ router.post('/deactivate', authenticateToken, async (req: Request, res: Response
 // POST /api/settings/reactivate - Reactivate account
 router.post('/reactivate', authenticateToken, async (req: Request, res: Response) => {
   try {
+    console.log('Reactivating account for user:', req.user?.userId);
+    
     const settings = await UserSettings.findOneAndUpdate(
       { userId: req.user?.userId },
       { 
@@ -309,12 +432,17 @@ router.post('/reactivate', authenticateToken, async (req: Request, res: Response
           'account.deleteScheduledAt': ''
         }
       },
-      { new: true, upsert: true }
+      { new: true, upsert: true, runValidators: true }
     );
+    
+    if (!settings) {
+      res.status(404).json({ message: 'Failed to reactivate account' });
+      return;
+    }
     
     res.json({ message: 'Account reactivated successfully', settings });
   } catch (error) {
-    console.error(error);
+    console.error('Error reactivating account:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Server error' });
   }
 });
@@ -325,6 +453,8 @@ router.post('/schedule-delete', authenticateToken, async (req: Request, res: Res
     const deleteDate = new Date();
     deleteDate.setDate(deleteDate.getDate() + 30); // 30 days from now
     
+    console.log('Scheduling account deletion for user:', req.user?.userId, 'on:', deleteDate);
+    
     const settings = await UserSettings.findOneAndUpdate(
       { userId: req.user?.userId },
       { 
@@ -332,12 +462,17 @@ router.post('/schedule-delete', authenticateToken, async (req: Request, res: Res
           'account.deleteScheduledAt': deleteDate
         }
       },
-      { new: true, upsert: true }
+      { new: true, upsert: true, runValidators: true }
     );
+    
+    if (!settings) {
+      res.status(404).json({ message: 'Failed to schedule deletion' });
+      return;
+    }
     
     res.json({ message: 'Account deletion scheduled', deleteDate, settings });
   } catch (error) {
-    console.error(error);
+    console.error('Error scheduling account deletion:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Server error' });
   }
 });
@@ -345,6 +480,8 @@ router.post('/schedule-delete', authenticateToken, async (req: Request, res: Res
 // POST /api/settings/request-data - Request data download
 router.post('/request-data', authenticateToken, async (req: Request, res: Response) => {
   try {
+    console.log('Data download requested for user:', req.user?.userId);
+    
     const settings = await UserSettings.findOneAndUpdate(
       { userId: req.user?.userId },
       { 
@@ -355,14 +492,17 @@ router.post('/request-data', authenticateToken, async (req: Request, res: Respon
           }
         }
       },
-      { new: true, upsert: true }
+      { new: true, upsert: true, runValidators: true }
     );
     
-    // Here you would typically trigger a background job to generate the data export
+    if (!settings) {
+      res.status(404).json({ message: 'Failed to request data download' });
+      return;
+    }
     
     res.json({ message: 'Data download request submitted', settings });
   } catch (error) {
-    console.error(error);
+    console.error('Error requesting data download:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Server error' });
   }
 });
@@ -379,11 +519,13 @@ router.post('/report', [
 ], async (req: Request, res: Response) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-   res.status(HTTP_STATUS.BAD_REQUEST).json({ errors: errors.array() });
-   return;
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ errors: errors.array() });
+    return;
   }
   
   try {
+    console.log('Submitting report from user:', req.user?.userId);
+    
     const report = new Report({
       reporterId: req.user?.userId,
       ...req.body
@@ -393,7 +535,7 @@ router.post('/report', [
     
     res.json({ message: 'Report submitted successfully', report });
   } catch (error) {
-    console.error(error);
+    console.error('Error submitting report:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Server error' });
   }
 });
@@ -409,24 +551,56 @@ router.get('/my-reports', authenticateToken, async (req: Request, res: Response)
     
     res.json(reports);
   } catch (error) {
-    console.error(error);
+    console.error('Error fetching user reports:', error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ message: 'Server error' });
   }
 });
 
-router.post('/block-post', authenticateToken, async (req: Request, res: Response) => {
+// POST /api/settings/block-post - Block a post
+router.post('/block-post', [
+  authenticateToken,
+  body('postId').isString().notEmpty()
+], async (req: Request, res: Response) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    res.status(HTTP_STATUS.BAD_REQUEST).json({ errors: errors.array() });
+    return;
+  }
+
   try {
-    const userId = req.user?.userId
-  const { postId } = req.body
-  const post = await Post.findById(postId)
-  if (!post) {
-    res.status(404).json({ error: "Post not found" })
-  }
-  await UserSettings.findOneAndUpdate({userId: userId}, { $push: { 'content.blockedPosts': postId}})
-  res.status(HTTP_STATUS.OK).json({success: true, postId, message: "Post blocked successfully"})
+    const userId = req.user?.userId;
+    const { postId } = req.body;
+    
+    console.log('Blocking post:', postId, 'for user:', userId);
+    
+    const post = await Post.findById(postId);
+    if (!post) {
+      res.status(404).json({ error: "Post not found" });
+      return;
+    }
+    
+    const settings = await UserSettings.findOneAndUpdate(
+      { userId: userId }, 
+      { $addToSet: { 'content.blockedPosts': postId } },
+      { new: true, upsert: true, runValidators: true }
+    );
+    
+    if (!settings) {
+      res.status(404).json({ error: "Failed to block post" });
+      return;
+    }
+    
+    console.log('Post blocked successfully:', postId);
+    res.status(HTTP_STATUS.OK).json({
+      success: true, 
+      postId, 
+      message: "Post blocked successfully",
+      settings
+    });
   } catch (error) {
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Internal Server Error" })
+    console.error('Error blocking post:', error);
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Internal Server Error" });
   }
-})
+});
 
 export default router;
