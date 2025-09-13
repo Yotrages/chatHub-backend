@@ -1,5 +1,24 @@
+// Updated Message model in backend
 import mongoose, { Schema } from 'mongoose';
 import { IMessage } from '../types';
+
+const reactionSchema = new Schema({
+  userId: {
+          type: Schema.Types.ObjectId,
+          ref: "User",
+          required: true,
+        },
+        emoji: {
+          category: {
+            type: String,
+            required: true,
+          },
+          name: {
+            type: String,
+            required: true,
+          },
+        },
+}, { timestamps: true });
 
 const messageSchema = new Schema<IMessage>({
   conversationId: {
@@ -41,21 +60,18 @@ const messageSchema = new Schema<IMessage>({
     type: Schema.Types.ObjectId,
     ref: 'Message',
   },
-  reactions: [{
+  reactions: [reactionSchema],
+  readBy: [{
     userId: {
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
     },
-    emoji: {
-      type: String,
-      required: true,
+    readAt: {
+      type: Date,
+      default: Date.now,
     },
   }],
-  isRead: {
-    type: Boolean,
-    default: false,
-  },
 }, {
   timestamps: true,
 });

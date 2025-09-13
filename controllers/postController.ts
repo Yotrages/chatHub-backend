@@ -704,33 +704,32 @@ export class PostsController {
       }
 
       // Get comments separately using the new structure
-      const topLevelComments = await Comment.find({
-        dynamicId: id,
-        parentCommentId: null,
-        isDeleted: false,
-      })
-        .populate("authorId", "username name avatar")
-        .populate("reactions.userId", "username name avatar")
-        .sort({ createdAt: -1 });
+      // const topLevelComments = await Comment.find({
+      //   dynamicId: id,
+      //   parentCommentId: null,
+      //   isDeleted: false,
+      // })
+      //   .populate("authorId", "username name avatar")
+      //   .populate("reactions.userId", "username name avatar")
+      //   .sort({ createdAt: -1 });
 
-      // Get nested replies for each comment
-      const commentsWithReplies = await Promise.all(
-        topLevelComments.map(async (comment) => {
-          const replies = await PostsController.getNestedReplies(
-            comment._id.toString()
-          );
-          return {
-            ...comment.toObject(),
-            replies,
-          };
-        })
-      );
+      // // Get nested replies for each comment
+      // const commentsWithReplies = await Promise.all(
+      //   topLevelComments.map(async (comment) => {
+      //     const replies = await PostsController.getNestedReplies(
+      //       comment._id.toString()
+      //     );
+      //     return {
+      //       ...comment.toObject(),
+      //       replies,
+      //     };
+      //   })
+      // );
 
       res.json({
         success: true,
         post: {
           ...post.toObject(),
-          comments: commentsWithReplies,
         },
       });
     } catch (error) {
@@ -893,10 +892,15 @@ export class PostsController {
         return;
       }
 
-      if (!user.savedPost.includes(post._id)) {
-        user.savedPost.push(post._id);
-        await user.save();
-      }
+      const existingSave = user.savedPost.find(save => save.postId.toString() === post._id.toString());
+    
+    if (!existingSave) {
+      user.savedPost.push({
+        postId: post._id,
+        savedAt: new Date()
+      });
+      await user.save();
+    }
 
       res.status(HTTP_STATUS.OK).json({
         success: true,

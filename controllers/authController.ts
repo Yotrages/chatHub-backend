@@ -552,32 +552,53 @@ export const getSavedPosts = async (req: Request, res: Response) => {
     const { userId } = req.params;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
+    const sort = req.query.sort as string || "latest"; // Add sort parameter (latest/oldest)
 
+    // Find the user and get their savedPost array
     const user = await User.findById(userId).select("savedPost");
     if (!user) {
       res.status(HTTP_STATUS.NOT_FOUND).json({ error: "User not found" });
       return;
     }
 
+    // Extract post IDs and create a map of postId to savedAt
+    const savedPostsMap = new Map(
+      user.savedPost.map((saved) => [saved.postId.toString(), saved.savedAt])
+    );
+    const postIds = user.savedPost.map((saved) => saved.postId);
+
+    // Fetch posts
     const posts = await Post.find({
-      _id: { $in: user.savedPost },
+      _id: { $in: postIds },
       isDeleted: false,
     })
       .populate("authorId", "username avatar")
       .populate("reactions.userId", "username name avatar")
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit);
+      .lean(); // Use lean for better performance
 
-    const totalPosts = await Post.countDocuments({
-      _id: { $in: user.savedPost },
-      isDeleted: false,
+    // Add savedAt to each post and sort
+    const enrichedPosts = posts.map((post) => ({
+      ...post,
+      savedAt: savedPostsMap.get(post._id.toString()) || new Date(post.createdAt),
+    }));
+
+    // Sort posts based on savedAt
+    const sortedPosts = enrichedPosts.sort((a, b) => {
+      const dateA = new Date(a.savedAt).getTime();
+      const dateB = new Date(b.savedAt).getTime();
+      return sort === "oldest" ? dateA - dateB : dateB - dateA;
     });
+
+    // Apply pagination
+    const startIndex = (page - 1) * limit;
+    const paginatedPosts = sortedPosts.slice(startIndex, startIndex + limit);
+
+    const totalPosts = sortedPosts.length;
     const totalPages = Math.ceil(totalPosts / limit);
 
     res.json({
       success: true,
-      posts,
+      posts: paginatedPosts,
       pagination: {
         currentPage: page,
         totalPages,
@@ -676,7 +697,7 @@ export const validateToken = async (req: Request, res: Response) => {
       return;
     }
 
-    const newToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET!, {
+    const newToken = jwt.sign({ userId: user._id, email: user.email }, process.env.JWT_SECRET!, {
       expiresIn: "24h",
     });
     res.json({ token: newToken });
@@ -745,3 +766,18 @@ export const updateOnlineStatus = async (req: Request, res: Response) => {
     res.status(500).json({ error: "Server error" });
   }
 };
+
+export const getOnlineStatus = async (req: Request, res: Response) => {
+  const {userId} = req.params
+  try {
+    const user = await User.findById(userId)
+    if (!user) {
+      res.status(HTTP_STATUS.NOT_FOUND).json({error: "User not found"})
+      return;
+    }
+    const isOnline = user.online
+    res.status(HTTP_STATUS.OK).json({success: true, isOnline})
+  } catch (error: any) {
+    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json(error)
+  }
+}

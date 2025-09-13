@@ -16,7 +16,9 @@ export const getConversations = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -30,9 +32,11 @@ export const getConversations = async (
       })
       .sort({ updatedAt: -1 });
 
-    res.json(conversations);
+    res.status(200).json(conversations);
   } catch (error) {
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Server error" });
+    res
+      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .json({ error: "Server error" });
   }
 };
 
@@ -55,7 +59,9 @@ export const createConversation = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -67,7 +73,9 @@ export const createConversation = async (
     }
 
     if (type === "group" && (!name || name.trim().length === 0)) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({ error: "Group conversation must have a name" });
+      res
+        .status(HTTP_STATUS.BAD_REQUEST)
+        .json({ error: "Group conversation must have a name" });
       return;
     }
 
@@ -110,7 +118,7 @@ export const createConversation = async (
           senderId: userId,
           type: "message",
           message: `${
-            sender?.username  || "Someone"
+            sender?.username || "Someone"
           } added you to a ${type} conversation`,
           entityType: "conversation",
           entityId: conversation._id,
@@ -122,7 +130,9 @@ export const createConversation = async (
     res.status(HTTP_STATUS.CREATED).json(conversation);
   } catch (error: any) {
     console.error("Conversation creation error:", error);
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Server error", details: error.message });
+    res
+      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .json({ error: "Server error", details: error.message });
   }
 };
 
@@ -133,24 +143,25 @@ export const getMessages = async (
   try {
     const { conversationId } = req.params;
     const { page = 1, limit = 50 } = req.query;
-
     const messages = await Message.find({ conversationId })
       .populate([
         { path: "senderId", select: "username avatar name" },
-        { path: "reactions.userId", select: "username name avatar" },
+        { path: "reactions.userId", select: "username avatar" },
         {
           path: "replyTo",
           select: "content senderId messageType fileUrl fileName",
           populate: { path: "senderId", select: "username avatar" },
         },
+        { path: "readBy.userId", select: "username avatar" },
       ])
       .sort({ createdAt: -1 })
       .limit(Number(limit))
       .skip((Number(page) - 1) * Number(limit));
-
-    res.json(messages.reverse());
+    res.status(200).json(messages.reverse());
   } catch (error) {
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Server error" });
+    res
+      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .json({ error: "Server error" });
   }
 };
 
@@ -166,23 +177,29 @@ export const sendMessage = async (
       fileUrl,
       fileName,
       replyTo,
-      postId
+      postId,
     } = req.body;
     const senderId = req.user?.userId;
 
     if (!senderId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
     if (!conversationId) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({ error: "Conversation ID is required" });
+      res
+        .status(HTTP_STATUS.BAD_REQUEST)
+        .json({ error: "Conversation ID is required" });
       return;
     }
 
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Conversation not found" });
+      res
+        .status(HTTP_STATUS.NOT_FOUND)
+        .json({ error: "Conversation not found" });
       return;
     }
 
@@ -199,7 +216,9 @@ export const sendMessage = async (
         !repliedMessage ||
         repliedMessage.conversationId.toString() !== conversationId
       ) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json({ error: "Invalid replyTo message ID" });
+        res
+          .status(HTTP_STATUS.BAD_REQUEST)
+          .json({ error: "Invalid replyTo message ID" });
         return;
       }
     }
@@ -229,13 +248,13 @@ export const sendMessage = async (
       },
     ]);
 
-      if (messageType === 'post' && postId) {
-    const post = await Post.findById(postId);
-    if (post) {
-      post.shareCount = (post.shareCount || 0) + 1;
-      await post.save();
+    if (messageType === "post" && postId) {
+      const post = await Post.findById(postId);
+      if (post) {
+        post.shareCount = (post.shareCount || 0) + 1;
+        await post.save();
+      }
     }
-  }
 
     await Conversation.findByIdAndUpdate(conversationId, {
       lastMessage: message._id,
@@ -253,9 +272,7 @@ export const sendMessage = async (
           recipientId: participantId.toString(),
           senderId,
           type: "message",
-          message: `${
-            sender?.username || "Someone"
-          } sent a new message`,
+          message: `${sender?.username || "Someone"} sent a new message`,
           entityType: "message",
           entityId: message._id,
           actionUrl: `/chat/${conversationId}`,
@@ -285,13 +302,17 @@ export const updateConversation = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Conversation not found" });
+      res
+        .status(HTTP_STATUS.NOT_FOUND)
+        .json({ error: "Conversation not found" });
       return;
     }
 
@@ -322,9 +343,11 @@ export const updateConversation = async (
       io.to(conversationId).emit("conversation_updated", conversation);
     }
 
-    res.json(conversation);
+    res.status(200).json(conversation);
   } catch (error) {
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Server error" });
+    res
+      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .json({ error: "Server error" });
   }
 };
 
@@ -337,13 +360,17 @@ export const deleteConversation = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Conversation not found" });
+      res
+        .status(HTTP_STATUS.NOT_FOUND)
+        .json({ error: "Conversation not found" });
       return;
     }
 
@@ -376,9 +403,13 @@ export const deleteConversation = async (
       io.to(conversationId).emit("conversation_deleted", { conversationId });
     }
 
-    res.json({ message: "Conversation deleted or left successfully" });
+    res
+      .status(200)
+      .json({ message: "Conversation deleted or left successfully" });
   } catch (error) {
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Server error" });
+    res
+      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .json({ error: "Server error" });
   }
 };
 
@@ -389,25 +420,35 @@ export const markMessagesAsRead = async (
   try {
     const { conversationId } = req.params;
     const userId = req.user?.userId;
-
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
-
     await Message.updateMany(
-      { conversationId, isRead: false, senderId: { $ne: userId } },
-      { isRead: true }
+      {
+        conversationId,
+        senderId: { $ne: userId },
+        "readBy.userId": { $ne: userId },
+      },
+      { $push: { readBy: { userId, readAt: new Date() } } }
     );
-
+    const user = await User.findById(userId);
     const io = req.app.get("io");
     if (io) {
-      io.to(conversationId).emit("messages_read", { conversationId, userId });
+      io.to(conversationId).emit("messages_read", {
+        conversationId,
+        userId: { _id: user._id, avatar: user.avatar, username: user.username },
+      });
     }
-
-    res.json({ message: "Messages marked as read", conversationId });
+    res
+      .status(200)
+      .json({ message: "Messages marked as read", conversationId, userId });
   } catch (error) {
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Server error" });
+    res
+      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .json({ error: "Server error" });
   }
 };
 
@@ -421,7 +462,9 @@ export const editMessage = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -432,7 +475,9 @@ export const editMessage = async (
     }
 
     if (message.senderId.toString() !== userId) {
-      res.status(HTTP_STATUS.FORBIDDEN).json({ error: "Not authorized to edit this message" });
+      res
+        .status(HTTP_STATUS.FORBIDDEN)
+        .json({ error: "Not authorized to edit this message" });
       return;
     }
 
@@ -450,9 +495,11 @@ export const editMessage = async (
       });
     }
 
-    res.json({ message });
+    res.status(200).json({ message });
   } catch (error) {
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Server error" });
+    res
+      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .json({ error: "Server error" });
   }
 };
 
@@ -465,7 +512,9 @@ export const deleteMessage = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -476,7 +525,9 @@ export const deleteMessage = async (
     }
 
     if (message.senderId.toString() !== userId) {
-      res.status(HTTP_STATUS.FORBIDDEN).json({ error: "Not authorized to delete this message" });
+      res
+        .status(HTTP_STATUS.FORBIDDEN)
+        .json({ error: "Not authorized to delete this message" });
       return;
     }
 
@@ -489,9 +540,11 @@ export const deleteMessage = async (
       });
     }
 
-    res.json({ message: "Message deleted successfully" });
+    res.status(200).json({ message: "Message deleted successfully" });
   } catch (error) {
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Server error" });
+    res
+      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .json({ error: "Server error" });
   }
 };
 
@@ -501,11 +554,13 @@ export const addReaction = async (
 ): Promise<void> => {
   try {
     const { messageId } = req.params;
-    const { emoji } = req.body;
+    const { emoji, name } = req.body;
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -517,7 +572,7 @@ export const addReaction = async (
 
     message.reactions =
       message.reactions?.filter((r) => r.userId.toString() !== userId) || [];
-    message.reactions.push({ userId, emoji });
+    message.reactions.push({ userId, emoji: { category: emoji, name} });
 
     await message.save();
     await message.populate([
@@ -541,9 +596,11 @@ export const addReaction = async (
       });
     }
 
-    res.json({ message });
+    res.status(200).json({ message });
   } catch (error) {
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Server error" });
+    res
+      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .json({ error: "Server error" });
   }
 };
 
@@ -556,7 +613,9 @@ export const removeReaction = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -579,9 +638,11 @@ export const removeReaction = async (
       });
     }
 
-    res.json({ message });
+    res.status(200).json({ message });
   } catch (error) {
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Server error" });
+    res
+      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .json({ error: "Server error" });
   }
 };
 
@@ -592,12 +653,16 @@ export const fileUploader = async (req: AuthRequest, res: Response) => {
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
     if (!file) {
-      res.status(HTTP_STATUS.BAD_REQUEST).json({ error: "You must upload a file" });
+      res
+        .status(HTTP_STATUS.BAD_REQUEST)
+        .json({ error: "You must upload a file" });
       return;
     }
 
@@ -607,7 +672,9 @@ export const fileUploader = async (req: AuthRequest, res: Response) => {
       fileType: fileType,
     });
   } catch (error: any) {
-    res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: "Server Error", details: error.message });
+    res
+      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .json({ error: "Server Error", details: error.message });
   }
 };
 
@@ -620,13 +687,17 @@ export const pinMessage = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Conversation not found" });
+      res
+        .status(HTTP_STATUS.NOT_FOUND)
+        .json({ error: "Conversation not found" });
       return;
     }
 
@@ -660,7 +731,9 @@ export const pinMessage = async (
       });
     }
 
-    res.json({ message: "Message pinned successfully", conversation });
+    res
+      .status(200)
+      .json({ message: "Message pinned successfully", conversation });
   } catch (error: any) {
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       error: "Server error",
@@ -679,13 +752,17 @@ export const unpinMessage = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
     const conversation = await Conversation.findById(conversationId);
     if (!conversation) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Conversation not found" });
+      res
+        .status(HTTP_STATUS.NOT_FOUND)
+        .json({ error: "Conversation not found" });
       return;
     }
 
@@ -712,7 +789,9 @@ export const unpinMessage = async (
       });
     }
 
-    res.json({ message: "Message unpinned successfully", conversation });
+    res
+      .status(200)
+      .json({ message: "Message unpinned successfully", conversation });
   } catch (error: any) {
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       error: "Server error",
@@ -731,7 +810,9 @@ export const forwardMessage = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -745,7 +826,9 @@ export const forwardMessage = async (
       targetConversationId
     );
     if (!targetConversation) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Target conversation not found" });
+      res
+        .status(HTTP_STATUS.NOT_FOUND)
+        .json({ error: "Target conversation not found" });
       return;
     }
 
@@ -793,9 +876,7 @@ export const forwardMessage = async (
           recipientId: participantId.toString(),
           senderId: userId,
           type: "message",
-          message: `${
-            sender?.username || "Someone"
-          } forwarded a message`,
+          message: `${sender?.username || "Someone"} forwarded a message`,
           entityType: "message",
           entityId: forwardedMessage._id,
           actionUrl: `/conversation/${targetConversationId}`,
@@ -824,7 +905,9 @@ export const starMessage = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -846,7 +929,7 @@ export const starMessage = async (
       await user.save();
     }
 
-    res.json({ message: "Message starred successfully" });
+    res.status(200).json({ message: "Message starred successfully" });
   } catch (error: any) {
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       error: "Server error",
@@ -865,7 +948,9 @@ export const unstarMessage = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -880,7 +965,7 @@ export const unstarMessage = async (
     );
     await user.save();
 
-    res.json({ message: "Message unstarred successfully" });
+    res.status(200).json({ message: "Message unstarred successfully" });
   } catch (error: any) {
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       error: "Server error",
@@ -897,48 +982,36 @@ export const getMessageInfo = async (
   try {
     const { messageId } = req.params;
     const userId = req.user?.userId;
-
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "User not authenticated" });
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
-
     const message = await Message.findById(messageId)
       .populate("senderId", "username avatar")
-      .populate("conversationId", "participants");
+      .populate("readBy.userId", "username avatar");
     if (!message) {
       res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Message not found" });
       return;
     }
-
     const conversation = await Conversation.findById(message.conversationId);
     if (!conversation || !conversation.participants.includes(userId)) {
-      res.status(HTTP_STATUS.FORBIDDEN).json({ error: "Not authorized to view message info" });
+      res
+        .status(HTTP_STATUS.FORBIDDEN)
+        .json({ error: "Not authorized to view message info" });
       return;
     }
-
-    const readBy = await Message.find({
-      conversationId: message.conversationId,
-      isRead: true,
-    })
-      .populate("senderId", "username")
-      .select("senderId isRead updatedAt");
-
-    const readInfo = readBy
-      .filter((msg) => msg._id.toString() === messageId)
-      .map((msg) => ({
-        user: msg.senderId,
-        readAt: new Date(),
-      }));
-
-    res.json({
+    res.status(200).json({
       messageId: message._id,
       content: message.content,
       sender: message.senderId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      isRead: message.isRead,
-      readBy,
+      createdAt: message.timestamp["createdAt"],
+      updatedAt: message.timestamp["updatedAt"],
+      readBy: message.readBy.map((rb) => ({
+        userId: rb.userId,
+        readAt: rb.readAt,
+      })),
     });
   } catch (error: any) {
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
@@ -948,10 +1021,9 @@ export const getMessageInfo = async (
     });
   }
 };
-
 export const sharePostToChat = async (req: AuthRequest, res: Response) => {
   const { conversationId, content, postId } = req.body;
-  const userId = req.user?.userId; 
+  const userId = req.user?.userId;
   if (!userId) {
     res.status(HTTP_STATUS.UNAUTHORIZED);
     throw new Error("User not authenticated");

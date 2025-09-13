@@ -1,68 +1,74 @@
 import mongoose, { Schema } from "mongoose";
 import { IComment, IReels } from "../types";
 
-const reactionSchema = new Schema({
-  userId: {
-          type: Schema.Types.ObjectId,
-          ref: "User",
-          required: true,
-        },
-        emoji: {
-          category: {
-            type: String,
-            required: true,
-          },
-          name: {
-            type: String,
-            required: true,
-          },
-        },
-}, { timestamps: true });
+const reactionSchema = new Schema(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    emoji: {
+      category: {
+        type: String,
+        required: true,
+      },
+      name: {
+        type: String,
+        required: true,
+      },
+    },
+  },
+  { timestamps: true }
+);
 
 // Comment schema with self-referencing for unlimited nesting
-const commentSchema = new Schema<IComment>({
-  dynamicId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Reels',
-    required: true
-  },
-  parentCommentId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Comment',
-    default: null // null means it's a top-level comment
-  },
-  authorId: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  content: {
-    type: String,
-    required: true,
-    maxlength: [2000, "Comment cannot exceed 2000 characters"]
-  },
-file: {
+const commentSchema = new Schema<IComment>(
+  {
+    dynamicId: {
+      type: Schema.Types.ObjectId,
+      ref: "Reels",
+      required: true,
+    },
+    parentCommentId: {
+      type: Schema.Types.ObjectId,
+      ref: "Comment",
+      default: null, // null means it's a top-level comment
+    },
+    authorId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    content: {
+      type: String,
+      required: true,
+      maxlength: [2000, "Comment cannot exceed 2000 characters"],
+    },
+    file: {
       type: String,
       sparse: true,
     },
-  reactions: [reactionSchema],
-  repliesCount: {
-    type: Number,
-    default: 0
+    reactions: [reactionSchema],
+    repliesCount: {
+      type: Number,
+      default: 0,
+    },
+    isEdited: {
+      type: Boolean,
+      default: false,
+    },
+    editedAt: {
+      type: Date,
+    },
+    // For soft delete
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
   },
-  isEdited: {
-    type: Boolean,
-    default: false
-  },
-  editedAt: {
-    type: Date
-  },
-  // For soft delete
-  isDeleted: {
-    type: Boolean,
-    default: false
-  }
-}, { timestamps: true });
+  { timestamps: true }
+);
 
 const reelsSchema = new Schema<IReels>(
   {
@@ -73,6 +79,13 @@ const reelsSchema = new Schema<IReels>(
     title: {
       type: String,
     },
+    viewers: [{
+        type: Schema.Types.ObjectId,
+        ref: "User"
+      }],
+      viewedAt: {
+    type: Date
+  },
     authorId: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -81,19 +94,19 @@ const reelsSchema = new Schema<IReels>(
     reactions: [reactionSchema],
     shareCount: { type: Number, default: 0 },
     commentsCount: {
-    type: Number,
-    default: 0
-  },
+      type: Number,
+      default: 0,
+    },
     visibility: {
-    type: String,
-    enum: ['public', 'friends', 'private'],
-    default: 'public'
-  },
-  // For soft delete
-  isDeleted: {
-    type: Boolean,
-    default: false
-  }
+      type: String,
+      enum: ["public", "friends", "private"],
+      default: "public",
+    },
+    // For soft delete
+    isDeleted: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
@@ -110,7 +123,7 @@ reelsSchema.index({ authorId: 1, createdAt: -1 });
 //       this.dynamicId,
 //       { $inc: { commentsCount: 1 } }
 //     );
-    
+
 //     // Update parent comment reply count if it's a reply
 //     if (this.parentCommentId) {
 //       await mongoose.model('Comment').findByIdAndUpdate(

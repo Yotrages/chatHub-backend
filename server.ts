@@ -22,7 +22,7 @@ import storiesRoutes from './routes/stories.js';
 import searchRoutes  from './routes/search.js'
 import userSettings from './routes/userSettings.js'
 import memoryThreads from './routes/memoryThreads.js'
-
+import videoRoutes from './routes/video.js'
 
 
 dotenv.config();
@@ -118,6 +118,7 @@ app.use('/api/stories', storiesRoutes);
 app.use('/api/search', searchRoutes)
 app.use('/api/settings', userSettings)
 app.use('/api', memoryThreads)
+app.use('/api/videos', videoRoutes)
 
 // Catch all for undefined routes
 app.use('*', (req, res) => {

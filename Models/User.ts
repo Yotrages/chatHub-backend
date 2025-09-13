@@ -29,7 +29,7 @@ const userSchema = new Schema<IUser>(
       minlength: [6, "Password must be at least 6 characters"],
     },
     starredMessages: [{ type: Schema.Types.ObjectId, ref: "Message" }],
-    archived: [{ type: Schema.Types.ObjectId, ref: "Conversation"}],
+    archived: [{ type: Schema.Types.ObjectId, ref: "Conversation" }],
     provider: {
       type: String,
       enum: ["google", "github", null],
@@ -38,14 +38,14 @@ const userSchema = new Schema<IUser>(
     followers: [
       {
         type: Schema.Types.ObjectId,
-        ref: 'User'
-      }
+        ref: "User",
+      },
     ],
     following: [
       {
         type: Schema.Types.ObjectId,
-        ref: 'User'
-      }
+        ref: "User",
+      },
     ],
     providerId: {
       type: String,
@@ -64,55 +64,55 @@ const userSchema = new Schema<IUser>(
       default: Date.now,
     },
     bio: {
-      type: String
+      type: String,
     },
     location: {
-      type: String
+      type: String,
     },
     website: {
-      type: String
+      type: String,
     },
     isVerified: {
-      type: Boolean
-    }, 
+      type: Boolean,
+    },
     coverImage: {
-      type: String
+      type: String,
     },
     postsCount: {
-      type: Number
+      type: Number,
     },
     followersCount: {
-      type: Number
+      type: Number,
     },
     followingCount: {
-      type: Number
+      type: Number,
     },
     isPrivate: {
-      type: Boolean
+      type: Boolean,
     },
     savedPost: [
       {
-        type: Schema.Types.ObjectId,
-        ref: 'Post'
-      }
+        postId: { type: Schema.Types.ObjectId, ref: "Post" },
+        savedAt: { type: Date, default: Date.now },
+      },
     ],
     likedPost: [
       {
         type: Schema.Types.ObjectId,
-        ref: 'Post'
-      }
+        ref: "Post",
+      },
     ],
     savedReel: [
       {
         type: Schema.Types.ObjectId,
-        ref: 'Reels'
-      }
+        ref: "Reels",
+      },
     ],
     likedReel: [
       {
         type: Schema.Types.ObjectId,
-        ref: 'Reels'
-      }
+        ref: "Reels",
+      },
     ],
   },
   {
@@ -127,6 +127,7 @@ userSchema.index(
     sparse: true,
   }
 );
+userSchema.index({ "savedPost.savedAt": 1 });
 
 userSchema.pre("save", function (next) {
   if (this.provider && !this.providerId) {

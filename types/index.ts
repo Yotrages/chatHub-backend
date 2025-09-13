@@ -27,7 +27,10 @@ export interface IUser extends Document {
   website?: string;
   isVerified: boolean;
   coverImage: string;
-  savedPost: Types.ObjectId[]
+  savedPost: {
+    postId: Types.ObjectId;
+    savedAt: Date;
+  }[];
   likedPost: Types.ObjectId[]
   savedReel: Types.ObjectId[]
   likedReel: Types.ObjectId[]
@@ -50,8 +53,15 @@ export interface IMessage extends Document {
   postId: Types.ObjectId;
   reactions?: {
     userId: string;
-    emoji: string;
+    emoji: {
+      category: string;
+      name: string;
+    };
   }[];
+  readBy: {
+    userId: Types.ObjectId;
+    readAt: Date;
+  }[]
 }
 
 export interface IReels extends Document {
@@ -59,6 +69,7 @@ export interface IReels extends Document {
   fileUrl: string;
   title: string;
   authorId: Types.ObjectId;
+  viewedAt: Date;
   reactions: {
     userId: string;
     emoji: {
@@ -66,6 +77,7 @@ export interface IReels extends Document {
       name: string;
     };
   }[];
+    viewers: Types.ObjectId[];
   shareCount: number;
   commentsCount: number;
     visibility: 'public' | 'private' | 'friends';
@@ -286,4 +298,17 @@ export interface ClientToServerEvents {
   "stop-typing": (data: { conversationId: string }) => void;
   "join-room": (room: string) => void;
   "leave-room": (room: string) => void;
+}
+
+
+export interface IProduct extends Document {
+  authorId: Types.ObjectId;
+  name: string;
+  description: string;
+  quantity: number;
+  price: number;
+  exp?: Date;
+  license?: string;
+  isDeleted: boolean;
+  images?: string[];
 }

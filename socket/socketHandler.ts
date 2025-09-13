@@ -419,11 +419,15 @@ export class SocketHandler {
     try {
       const { conversationId } = data;
       const userId = socket.userId;
-      await Message.updateMany(
-        { conversationId, isRead: false, senderId: { $ne: userId } },
-        { isRead: true }
-      );
-      this.io.to(conversationId).emit("mark_read", { conversationId, userId });
+          await Message.updateMany(
+            {
+              conversationId,
+              senderId: { $ne: userId },
+              "readBy.userId": { $ne: userId },
+            },
+            { $push: { readBy: { userId, readAt: new Date() } } }
+          );
+      this.io.to(conversationId).emit("messages_read", { conversationId, userId });
     } catch (error) {
       console.error("Error marking messages as read:", error);
       socket.emit("message_error", {

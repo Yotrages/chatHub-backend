@@ -857,4 +857,145 @@ export class ReelsController {
         .json({ error: "Internal server error" });
     }
   }
+
+   static async getStoryViewers(req: AuthRequest, res: Response) {
+      try {
+        const userId = req.user?.userId;
+        const { reelId } = req.params;
+  
+        if (!userId) {
+          res.status(HTTP_STATUS.UNAUTHORIZED).json({
+            success: false,
+            error: "User not authenticated",
+          });
+          return;
+        }
+  
+        if (!reelId || !mongoose.Types.ObjectId.isValid(reelId)) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json({
+            success: false,
+            error: "Valid reel ID is required",
+          });
+          return;
+        }
+  
+        const reel = await Reels.findById(reelId).populate(
+          "viewers",
+          "username avatar"
+        );
+        if (!reel) {
+          res.status(HTTP_STATUS.NOT_FOUND).json({
+            success: false,
+            error: "reel not found",
+          });
+          return;
+        }
+  
+        if (reel.authorId.toString() !== userId) {
+          res.status(HTTP_STATUS.FORBIDDEN).json({
+            success: false,
+            error: "You are not authorized to view this reel's viewers",
+          });
+          return;
+        }
+  
+         res.status(HTTP_STATUS.OK).json({
+          success: true,
+          data: {
+            viewers: reel.viewers,
+            viewersCount: reel.viewers.length,
+            reelId,
+            viewedAt: reel.viewedAt
+          },
+        });
+      } catch (error: any) {
+        console.error("Error fetching story viewers:", error);
+         res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+          success: false,
+          error: "Server error",
+          message: "Failed to fetch story viewers",
+        });
+      }
+    }
+  
+    // Set story viewer (track view)
+    static async setStoryViewers(req: AuthRequest, res: Response) {
+      try {
+        const userId = req.user?.userId;
+        const { reelId } = req.params;
+  
+        if (!userId) {
+          res.status(HTTP_STATUS.UNAUTHORIZED).json({
+            success: false,
+            error: "User not authenticated",
+          });
+          return;
+        }
+        
+        if (!reelId || !mongoose.Types.ObjectId.isValid(reelId)) {
+          res.status(HTTP_STATUS.BAD_REQUEST).json({
+            success: false,
+            error: "Valid reel ID is required",
+          });
+          return;
+        }
+        
+        const reel = await Reels.findById(reelId);
+        if (!reel) {
+          res.status(HTTP_STATUS.NOT_FOUND).json({
+            success: false,
+            error: "reel not found",
+          });
+          return;
+        }
+        
+        const userObjectId = new mongoose.Types.ObjectId(userId);
+        const alreadyViewed = reel.viewers.some((viewer) =>
+          viewer.equals(userObjectId)
+        );
+  
+        if (alreadyViewed) {
+          res.status(HTTP_STATUS.OK).json({
+            success: true,
+            message: "View already recorded",
+            data: {
+              reelId,
+              viewersCount: reel.viewers.length,
+            },
+          });
+          return;
+        }
+  
+        reel.viewers = reel.viewers.filter(
+          (viewers, index, self) =>
+            index ===
+            self.findIndex(
+              (r) => r.toString() === viewers.toString()
+            )
+        );
+  
+        reel.viewers.push(userObjectId);
+        reel.viewedAt = new Date(Date.now())
+        await reel.save();
+        await reel.populate("viewers", "username avatar name");
+  
+        res.status(HTTP_STATUS.OK).json({
+          success: true,
+          data: {
+            reelId,
+            viewers: reel.viewers,
+            viewersCount: reel.viewers.length,
+          },
+          message: "View recorded successfully",
+        });
+      } catch (error: any) {
+        console.error("Error setting story viewer:", error);
+       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+          success: false,
+          error: "Server Error",
+          message: "Failed to record view",
+        });
+      }
+    }
+  
 }
