@@ -93,7 +93,6 @@ export async function detectMentions(content: string): Promise<string[]> {
 
 export async function populateNestedReplies(replies: any[]): Promise<void> {
   for (let reply of replies) {
-    // Populate author
     if (reply.authorId && !reply.authorId.username) {
       await User.populate(reply, {
         path: 'authorId',
@@ -101,7 +100,6 @@ export async function populateNestedReplies(replies: any[]): Promise<void> {
       });
     }
 
-    // Populate reaction users
     if (reply.reactions && reply.reactions.length > 0) {
       await User.populate(reply, {
         path: 'reactions.userId',
@@ -109,7 +107,6 @@ export async function populateNestedReplies(replies: any[]): Promise<void> {
       });
     }
 
-    // Recursively populate nested replies
     if (reply.replies && reply.replies.length > 0) {
       await populateNestedReplies(reply.replies);
     }
@@ -133,9 +130,7 @@ export function containsBlockedKeywords(content: string, blockedKeywords: string
     return false;
   }
 
-  // Convert content to lowercase for case-insensitive matching
   const contentLower = content.toLowerCase();
-  // Check if any blocked keyword is present in the content
   return blockedKeywords.some(keyword => 
     contentLower.includes(keyword.toLowerCase())
   );
@@ -146,30 +141,25 @@ export function isSensitiveContent(content: string): boolean {
     return false;
   }
 
-  // Predefined list of sensitive words/patterns (extend as needed)
   const sensitiveWords = [
     'explicit',
     'violence',
     'hate',
     'offensive',
-    // Add more words or regex patterns as needed
   ];
 
-  // Regular expressions for sensitive patterns
   const sensitivePatterns = [
-    /\b(explicit|graphic|nsfw)\b/i, // Matches explicit, graphic, nsfw
-    /\b(violence|abuse|assault)\b/i, // Matches violent terms
-    /\b(hate|discriminat(e|ion)|slur)\b/i, // Matches hate speech
+    /\b(explicit|graphic|nsfw)\b/i, 
+    /\b(violence|abuse|assault)\b/i, 
+    /\b(hate|discriminat(e|ion)|slur)\b/i, 
   ];
 
   const contentLower = content.toLowerCase();
 
-  // Check for sensitive words
   const hasSensitiveWord = sensitiveWords.some(word => 
     contentLower.includes(word)
   );
 
-  // Check for sensitive patterns
   const hasSensitivePattern = sensitivePatterns.some(pattern => 
     pattern.test(contentLower)
   );

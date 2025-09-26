@@ -21,8 +21,8 @@ const storage = new CloudinaryStorage({
 const upload = multer({ 
   storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-    files: 5 // Max 5 images per post
+    fileSize: 10 * 1024 * 1024, 
+    files: 5 
   }
 });
 
@@ -31,6 +31,8 @@ router.get('/:id', ReelsController.getSingleReel);
 router.get("/:reelId/comments", authenticateToken, ReelsController.getReelsComments);
 router.post("/", authenticateToken, upload.single('fileUrl'), ReelsController.createReel);
 router.post("/:reelId/react", authenticateToken, ReelsController.addReaction);
+router.get("/viewers/:storyId", authenticateToken, ReelsController.getReelViewers);
+router.post("/viewers/:storyId", authenticateToken, ReelsController.setReelViewers);
 router.post("/:reelId/comment/:commentId/react", authenticateToken, ReelsController.addCommentReaction);
 router.post("/:reelId/comment", authenticateToken, ReelsController.createComment);
 router.post('/:reelId/save', ReelsController.saveReel)

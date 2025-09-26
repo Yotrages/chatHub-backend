@@ -537,7 +537,6 @@ export class PostsController {
 
       const userObjectId = new mongoose.Types.ObjectId(userId);
 
-      // Remove duplicates
       comment.reactions = comment.reactions.filter(
         (reaction, index, self) =>
           index ===
@@ -575,7 +574,6 @@ export class PostsController {
         isLiked = true;
         actionType = "added";
 
-        // Notify comment author
         if (comment.authorId.toString() !== userId) {
           const sender = await User.findById(userId).select("username name");
           await NotificationService.createNotification({
@@ -689,7 +687,6 @@ export class PostsController {
     }
   }
 
-  // Get single post with comments
   static async getSinglePost(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
@@ -703,7 +700,6 @@ export class PostsController {
         return;
       }
 
-      // Get comments separately using the new structure
       // const topLevelComments = await Comment.find({
       //   dynamicId: id,
       //   parentCommentId: null,

@@ -1,4 +1,3 @@
-// models/UserSettings.ts
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IUserSettings extends Document {
@@ -56,7 +55,7 @@ export interface IUserSettings extends Document {
   security: {
     twoFactorAuth: boolean;
     loginAlerts: boolean;
-    sessionTimeout: number; // in minutes
+    sessionTimeout: number; 
     blockedUsers: mongoose.Types.ObjectId[];
     trustedDevices: {
       deviceId: string | undefined;
@@ -193,7 +192,7 @@ const UserSettingsSchema = new Schema<IUserSettings>({
     },
     sessionTimeout: {
       type: Number,
-      default: 60 // 1 hour
+      default: 60 
     },
     blockedUsers: [{
       type: Schema.Types.ObjectId,
@@ -249,12 +248,10 @@ const UserSettingsSchema = new Schema<IUserSettings>({
   timestamps: true
 });
 
-// Create indexes
 UserSettingsSchema.index({ 'security.blockedUsers': 1 });
 
 export const UserSettings = mongoose.model<IUserSettings>('UserSettings', UserSettingsSchema);
 
-// Report Schema for abuse reporting
 export interface IReport extends Document {
   reporterId: mongoose.Types.ObjectId;
   reportedUserId?: mongoose.Types.ObjectId;

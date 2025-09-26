@@ -52,7 +52,6 @@ let stateString: string | undefined;
     if (typeof req.query.state === 'string') {
       stateString = req.query.state;
     } else {
-      // Base64 encode the object for URL safety
       const jsonString = JSON.stringify(req.query.state);
       stateString = Buffer.from(jsonString).toString('base64url');
     }
@@ -73,7 +72,6 @@ router.get('/github', (req, res, next) => {
     if (typeof req.query.state === 'string') {
       stateString = req.query.state;
     } else {
-      // Base64 encode the object for URL safety
       const jsonString = JSON.stringify(req.query.state);
       stateString = Buffer.from(jsonString).toString('base64url');
     }

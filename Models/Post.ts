@@ -1,7 +1,6 @@
 import mongoose, { Schema } from "mongoose";
 import { IComment, IPost } from "../types";
 
-// Reaction schema for likes, loves, etc.
 const reactionSchema = new Schema({
   userId: {
           type: Schema.Types.ObjectId,
@@ -20,7 +19,6 @@ const reactionSchema = new Schema({
         },
 }, { timestamps: true });
 
-// Comment schema with self-referencing for unlimited nesting
 const commentSchema = new Schema<IComment>({
   dynamicId: {
     type: Schema.Types.ObjectId,
@@ -30,7 +28,7 @@ const commentSchema = new Schema<IComment>({
   parentCommentId: {
     type: Schema.Types.ObjectId,
     ref: 'Comment',
-    default: null // null means it's a top-level comment
+    default: null 
   },
   authorId: {
     type: Schema.Types.ObjectId,
@@ -58,14 +56,12 @@ file: {
   editedAt: {
     type: Date
   },
-  // For soft delete
   isDeleted: {
     type: Boolean,
     default: false
   }
 }, { timestamps: true });
 
-// Post schema
 const postSchema = new Schema<IPost>({
   authorId: {
     type: Schema.Types.ObjectId,
@@ -104,43 +100,21 @@ const postSchema = new Schema<IPost>({
   editedAt: {
     type: Date
   },
-  // Privacy settings
   visibility: {
     type: String,
     enum: ['public', 'friends', 'private'],
     default: 'public'
   },
-  // For soft delete
   isDeleted: {
     type: Boolean,
     default: false
   }
 }, { timestamps: true });
 
-// Indexes for better performance
 commentSchema.index({ dynamicId: 1, parentCommentId: 1, createdAt: -1 });
 commentSchema.index({ authorId: 1 });
 postSchema.index({ authorId: 1, createdAt: -1 });
 postSchema.index({ createdAt: -1 });
-
-// Middleware to update counts
-// commentSchema.post('save', async function() {
-//   if (this.isNew && !this.isDeleted) {
-//     // Update post comment count
-//     await mongoose.model('Post').findByIdAndUpdate(
-//       this.dynamicId,
-//       { $inc: { commentsCount: 1 } }
-//     );
-    
-//     // Update parent comment reply count if it's a reply
-//     if (this.parentCommentId) {
-//       await mongoose.model('Comment').findByIdAndUpdate(
-//         this.parentCommentId,
-//         { $inc: { repliesCount: 1 } }
-//       );
-//     }
-//   }
-// });
 
 export const Comment = mongoose.model("Comment", commentSchema);
 export const Post = mongoose.model("Post", postSchema);

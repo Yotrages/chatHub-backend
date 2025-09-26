@@ -11,17 +11,15 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
 
   const { profile, provider } = req.authData;
   const redirectBase = process.env.FRONTEND_URL || "http://localhost:3000";
-  let intent = "login"; // Default to login
+  let intent = "login";
   let successRedirect = "oauth-success";
 
-  // Parse state parameter to get intent
   try {
     if (req.query.state) {
       const decoded = JSON.parse(Buffer.from(req.query.state as string, "base64").toString());
       intent = decoded.intent || "login";
       successRedirect = decoded.redirectUrl || "oauth-success";
       
-      // Check if state is expired (20 minutes)
       const timestamp = decoded.timestamp;
       if (timestamp && Date.now() - timestamp > 20 * 60 * 1000) {
         throw new Error("State parameter expired");
@@ -38,9 +36,7 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
     const existingUser = await User.findOne({ email: profile.email });
 
     if (intent === "register") {
-      // REGISTRATION FLOW
       if (existingUser) {
-        // User already exists, can't register again
         if (existingUser.provider !== provider) {
           return res.redirect(
             `${redirectBase}/register?error=${encodeURIComponent(
@@ -56,13 +52,11 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
         }
       }
 
-      // Create new user (registration)
       const newUser = await User.create({
         username: profile.name,
         email: profile.email,
         providerId: profile.id,
         provider: provider,
-        // Add any other fields you need for new users
       });
 
       const token = generateToken({
@@ -70,7 +64,6 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
         email: newUser.email,
       });
 
-      // Redirect to success page after successful registration
       return res.redirect(
         `${redirectBase}/${successRedirect}?token=${token}&type=register&id=${newUser._id}&username=${encodeURIComponent(
           newUser.username || ""
@@ -78,9 +71,7 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
       );
 
     } else {
-      // LOGIN FLOW
       if (!existingUser) {
-        // User doesn't exist, can't login
         return res.redirect(
           `${redirectBase}/login?error=${encodeURIComponent(
             "No account found with this email. Please register first."
@@ -88,7 +79,6 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
         );
       }
 
-      // Check if provider matches
       if (existingUser.provider !== provider) {
         return res.redirect(
           `${redirectBase}/login?error=${encodeURIComponent(
@@ -97,7 +87,6 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
         );
       }
 
-      // Successful login
       const token = generateToken({
         userId: existingUser._id,
         email: existingUser.email,
@@ -113,7 +102,6 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
   } catch (error) {
     console.error("OAuth error:", error);
     
-    // Redirect to appropriate page based on intent
     const redirectPage = intent === "register" ? "register" : "login";
     return res.redirect(
       `${redirectBase}/${redirectPage}?error=${encodeURIComponent(
@@ -123,7 +111,6 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
   }
 };
 
-// Helper function to generate state parameter for OAuth URLs
 export const generateOAuthState = (intent: "login" | "register", redirectUrl?: string) => {
   const state = {
     intent,
@@ -133,11 +120,9 @@ export const generateOAuthState = (intent: "login" | "register", redirectUrl?: s
   return Buffer.from(JSON.stringify(state)).toString("base64");
 };
 
-// Example usage in your OAuth routes
 export const initiateGoogleOAuth = (intent: "login" | "register") => {
   return (req: Request, res: Response, next: any) => {
     const state = generateOAuthState(intent, req.query.redirect as string);
-    // Add state to your passport authenticate call
     req.query.state = state;
     next();
   };

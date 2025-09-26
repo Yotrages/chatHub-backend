@@ -10,7 +10,6 @@ export const getVideoPosts = async (req, res) => {
     const videoExtensions = '\\.(mp4|avi|mov|wmv|flv|webm|mpeg)$';
 
     const pipeline: PipelineStage[] = [
-      // Stage 1: Match posts with video content
       {
         $match: {
           isDeleted: false,
@@ -23,7 +22,6 @@ export const getVideoPosts = async (req, res) => {
           },
         },
       },
-      // Stage 2: Lookup author information
       {
         $lookup: {
           from: 'users',
@@ -42,11 +40,9 @@ export const getVideoPosts = async (req, res) => {
           ],
         },
       },
-      // Stage 3: Unwind author array to object
       {
         $unwind: '$author',
       },
-      // Stage 4: Lookup reaction users
       {
         $lookup: {
           from: 'users',
@@ -55,7 +51,6 @@ export const getVideoPosts = async (req, res) => {
           as: 'reactionUsers',
         },
       },
-      // Stage 5: Process post reactions and filter videos
       {
         $addFields: {
           reactions: {
@@ -108,17 +103,14 @@ export const getVideoPosts = async (req, res) => {
           },
         },
       },
-      // Stage 6: Clean up temporary fields
       {
         $project: {
           reactionUsers: 0,
         },
       },
-      // Stage 7: Sort by creation date
       {
         $sort: { createdAt: -1 },
       },
-      // Stage 8: Facet for pagination
       {
         $facet: {
           posts: [{ $skip: skip }, { $limit: limit }],
@@ -165,7 +157,6 @@ export const getTrendingVideoPosts = async (req, res) => {
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
 
     const pipeline: PipelineStage[] = [
-      // Stage 1: Match recent posts with video content
       {
         $match: {
           isDeleted: false,
@@ -179,7 +170,6 @@ export const getTrendingVideoPosts = async (req, res) => {
           },
         },
       },
-      // Stage 2: Add engagement calculations
       {
         $addFields: {
           reactionCount: { $size: '$reactions' },
@@ -192,7 +182,6 @@ export const getTrendingVideoPosts = async (req, res) => {
           },
         },
       },
-      // Stage 3: Lookup author information
       {
         $lookup: {
           from: 'users',
@@ -211,11 +200,9 @@ export const getTrendingVideoPosts = async (req, res) => {
           ],
         },
       },
-      // Stage 4: Unwind author array
       {
         $unwind: '$author',
       },
-      // Stage 5: Lookup reaction users
       {
         $lookup: {
           from: 'users',
@@ -224,7 +211,6 @@ export const getTrendingVideoPosts = async (req, res) => {
           as: 'reactionUsers',
         },
       },
-      // Stage 6: Add video filtering and process reactions
       {
         $addFields: {
           reactions: {
@@ -263,20 +249,17 @@ export const getTrendingVideoPosts = async (req, res) => {
           },
         },
       },
-      // Stage 7: Clean up temporary fields
       {
         $project: {
           reactionUsers: 0,
         },
       },
-      // Stage 8: Sort by engagement
       {
         $sort: {
           engagementScore: -1,
           createdAt: -1,
         },
       },
-      // Stage 9: Facet for pagination
       {
         $facet: {
           posts: [{ $skip: skip }, { $limit: limit }],
@@ -317,7 +300,6 @@ export const getVideoPostById = async (req, res) => {
   try {
     const { postId } = req.params;
 
-    // Validate ObjectId
     if (!mongoose.Types.ObjectId.isValid(postId)) {
       return res.status(400).json({
         success: false,
@@ -335,7 +317,6 @@ export const getVideoPostById = async (req, res) => {
           isDeleted: false,
         },
       },
-      // Stage 2: Lookup author
       {
         $lookup: {
           from: 'users',
@@ -354,11 +335,9 @@ export const getVideoPostById = async (req, res) => {
           ],
         },
       },
-      // Stage 3: Unwind author
       {
         $unwind: '$author',
       },
-      // Stage 4: Lookup reaction users
       {
         $lookup: {
           from: 'users',
@@ -367,7 +346,6 @@ export const getVideoPostById = async (req, res) => {
           as: 'reactionUsers',
         },
       },
-      // Stage 5: Process reactions and videos
       {
         $addFields: {
           reactions: {
@@ -406,7 +384,6 @@ export const getVideoPostById = async (req, res) => {
           },
         },
       },
-      // Stage 6: Clean up temporary fields
       {
         $project: {
           reactionUsers: 0,

@@ -21,16 +21,18 @@ const storiesSchema = new Schema<IStories>({
     trim: true,
   },
   viewers: [{
-    type: Schema.Types.ObjectId,
-    ref: "User"
-  }],
+    viewer: {
+      type: Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    viewedAt: {
+      type: Date
+    }
+}],
   authorId: {
     type: Schema.Types.ObjectId,
     ref: "User",
     required: true,
-  },
-  viewedAt: {
-    type: Date
   },
   reactions: [{
     userId: {

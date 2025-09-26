@@ -13,7 +13,6 @@ export class NotificationService {
     actionUrl?: string;
   }, req?: Request): Promise<INotification> {
     try {
-      // Don't create notification if user is notifying themselves
       if (data.recipientId === data.senderId) {
         throw new Error('Cannot create notification for self');
       }
@@ -21,8 +20,7 @@ export class NotificationService {
       const notification = new Notification(data);
       await notification.save();
       
-      // Populate sender info for real-time updates
-      await notification.populate('senderId', 'username name avatar');
+      await notification.populate('senderId', 'username avatar');
 
       if (req?.io) {
         req.io.emit('new_notification', notification)

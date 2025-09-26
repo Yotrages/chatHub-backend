@@ -8,7 +8,6 @@ import { NotificationService } from "../services/notificationServices";
 import { UserSettings } from "../Models/userSettings";
 
 export class ReelsController {
-  // Get all reels (social feed)
   static async getReels(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.user?.userId;
@@ -19,11 +18,9 @@ export class ReelsController {
       let reels;
 
       if (userId) {
-        // Get the current user's following list
         const currentUser = await User.findById(userId).select("following");
         const followingIds = currentUser?.following || [];
 
-        // Use aggregation to sort reels by following status
         reels = await Reels.aggregate([
           { $match: { isDeleted: false } },
           {
@@ -52,7 +49,6 @@ export class ReelsController {
           },
         ]);
 
-        // Populate the aggregated results
         await Reels.populate(reels, [
           {
             path: "authorId",
@@ -94,7 +90,6 @@ export class ReelsController {
     }
   }
 
-  // Get comments for a specific reel with nested structure
   static async getReelsComments(req: Request, res: Response): Promise<void> {
     try {
       const { reelId } = req.params;
@@ -102,7 +97,6 @@ export class ReelsController {
       const limit = parseInt(req.query.limit as string) || 10;
       const skip = (page - 1) * limit;
 
-      // Get top-level comments (parentCommentId is null)
       const topLevelComments = await ReelComment.find({
         dynamicId: reelId,
         parentCommentId: null,
@@ -114,7 +108,6 @@ export class ReelsController {
         .skip(skip)
         .limit(limit);
 
-      // For each top-level comment, get its nested replies
       const commentsWithReplies = await Promise.all(
         topLevelComments.map(async (comment) => {
           const replies = await ReelsController.getNestedReplies(
@@ -176,7 +169,6 @@ export class ReelsController {
       }
     }
 
-  // Helper function to recursively get nested replies
   static async getNestedReplies(parentCommentId: string): Promise<any[]> {
     const replies = await ReelComment.find({
       parentCommentId,
@@ -184,9 +176,8 @@ export class ReelsController {
     })
       .populate("authorId", "username name avatar")
       .populate("reactions.userId", "username name avatar")
-      .sort({ createdAt: 1 }); // Oldest first for replies
+      .sort({ createdAt: 1 }); 
 
-    // Recursively get nested replies for each reply
     const repliesWithNested = await Promise.all(
       replies.map(async (reply) => {
         const nestedReplies = await ReelsController.getNestedReplies(
@@ -259,7 +250,6 @@ export class ReelsController {
     }
   }
 
-  // Create comment
   static async createComment(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { reelId } = req.params;
@@ -280,7 +270,6 @@ export class ReelsController {
         return;
       }
 
-      // If parentCommentId is provided, verify it exists
       if (parentCommentId) {
         const parentComment = await ReelComment.findById(parentCommentId);
         if (!parentComment) {
@@ -306,7 +295,6 @@ export class ReelsController {
       await newComment.save();
       await newComment.populate("authorId", "username name avatar");
 
-      // Notify reel author (if not self and it's a top-level comment)
       if (!parentCommentId && reel.authorId.toString() !== authorId) {
         const sender = await User.findById(authorId).select("username name");
         await NotificationService.createNotification({
@@ -320,7 +308,6 @@ export class ReelsController {
         });
       }
 
-      // Notify parent comment author (if it's a reply)
       if (parentCommentId) {
         const parentComment = await ReelComment.findById(parentCommentId);
         if (parentComment && parentComment.authorId.toString() !== authorId) {
@@ -337,7 +324,6 @@ export class ReelsController {
         }
       }
 
-      // Notify mentioned users
       const mentionedUserIds = await detectMentions(content);
       const sender = await User.findById(authorId).select("username name");
       for (const mentionedUserId of mentionedUserIds) {
@@ -371,7 +357,6 @@ export class ReelsController {
     }
   }
 
-  // Add reaction to reel
   static async addReaction(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { reelId } = req.params;
@@ -393,7 +378,6 @@ export class ReelsController {
 
       const userObjectId = new mongoose.Types.ObjectId(userId);
 
-      // Remove duplicates
       reel.reactions = reel.reactions.filter(
         (reaction, index, self) =>
           index ===
@@ -431,7 +415,6 @@ export class ReelsController {
         isLiked = true;
         actionType = "added";
 
-        // Notify reel author
         if (reel.authorId.toString() !== userId) {
           const sender = await User.findById(userId).select("username name");
           await NotificationService.createNotification({
@@ -465,7 +448,6 @@ export class ReelsController {
     }
   }
 
-  // Add reaction to comment
   static async addCommentReaction(
     req: AuthRequest,
     res: Response
@@ -490,7 +472,6 @@ export class ReelsController {
 
       const userObjectId = new mongoose.Types.ObjectId(userId);
 
-      // Remove duplicates
       comment.reactions = comment.reactions.filter(
         (reaction, index, self) =>
           index ===
@@ -528,7 +509,6 @@ export class ReelsController {
         isLiked = true;
         actionType = "added";
 
-        // Notify comment author
         if (comment.authorId.toString() !== userId) {
           const sender = await User.findById(userId).select("username name");
           await NotificationService.createNotification({
@@ -562,7 +542,6 @@ export class ReelsController {
     }
   }
 
-  // Delete comment
   static async deleteComment(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { commentId } = req.params;
@@ -581,7 +560,6 @@ export class ReelsController {
         return;
       }
 
-      // Soft delete
       comment.isDeleted = true;
       await comment.save();
 
@@ -597,7 +575,6 @@ export class ReelsController {
     }
   }
 
-  // Update comment
   static async updateComment(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { commentId } = req.params;
@@ -643,7 +620,6 @@ export class ReelsController {
     }
   }
 
-  // Get single reel with comments
   static async getSingleReel(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
@@ -657,7 +633,6 @@ export class ReelsController {
         return;
       }
 
-      // Get comments separately using the new structure
       const topLevelComments = await ReelComment.find({
         dynamicId: id,
         parentCommentId: null,
@@ -667,7 +642,6 @@ export class ReelsController {
         .populate("reactions.userId", "username name avatar")
         .sort({ createdAt: -1 });
 
-      // Get nested replies for each comment
       const commentsWithReplies = await Promise.all(
         topLevelComments.map(async (comment) => {
           const replies = await ReelsController.getNestedReplies(
@@ -695,7 +669,6 @@ export class ReelsController {
     }
   }
 
-  // Delete reel
   static async deleteReel(req: AuthRequest, res: Response): Promise<void> {
     const session = await mongoose.startSession();
     session.startTransaction();
@@ -719,11 +692,9 @@ export class ReelsController {
         return;
       }
 
-      // Soft delete the reel
       reel.isDeleted = true;
       await reel.save({ session });
 
-      // Soft delete all comments related to this reel
       await ReelComment.updateMany(
         { dynamicId: reelId },
         { $set: { isDeleted: true } },
@@ -858,7 +829,7 @@ export class ReelsController {
     }
   }
 
-   static async getStoryViewers(req: AuthRequest, res: Response) {
+   static async getReelViewers(req: AuthRequest, res: Response) {
       try {
         const userId = req.user?.userId;
         const { reelId } = req.params;
@@ -905,7 +876,6 @@ export class ReelsController {
             viewers: reel.viewers,
             viewersCount: reel.viewers.length,
             reelId,
-            viewedAt: reel.viewedAt
           },
         });
       } catch (error: any) {
@@ -918,8 +888,7 @@ export class ReelsController {
       }
     }
   
-    // Set story viewer (track view)
-    static async setStoryViewers(req: AuthRequest, res: Response) {
+    static async setReelViewers(req: AuthRequest, res: Response) {
       try {
         const userId = req.user?.userId;
         const { reelId } = req.params;
@@ -951,7 +920,7 @@ export class ReelsController {
         
         const userObjectId = new mongoose.Types.ObjectId(userId);
         const alreadyViewed = reel.viewers.some((viewer) =>
-          viewer.equals(userObjectId)
+          viewer.viewer.equals(userObjectId)
         );
   
         if (alreadyViewed) {
@@ -974,8 +943,7 @@ export class ReelsController {
             )
         );
   
-        reel.viewers.push(userObjectId);
-        reel.viewedAt = new Date(Date.now())
+        reel.viewers.push({viewer: userObjectId, viewedAt: new Date()});
         await reel.save();
         await reel.populate("viewers", "username avatar name");
   

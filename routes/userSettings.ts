@@ -1,4 +1,3 @@
-// routes/settings.ts
 import express, { Request, Response } from 'express';
 import { UserSettings, Report } from '../Models/userSettings';
 import { authenticateToken } from '../middleware/authMiddleware';
@@ -11,7 +10,6 @@ import { Post } from '../Models/Post';
 
 const router = express.Router();
 
-// Configure multer for background image uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'uploads/backgrounds/');
@@ -24,7 +22,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 5 * 1024 * 1024 }, 
   fileFilter: (req, file, cb) => {
     const allowedTypes = /jpeg|jpg|png|gif|webp/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
@@ -44,7 +42,6 @@ router.get('/', authenticateToken, async (req: Request, res: Response) => {
     let settings = await UserSettings.findOne({ userId: req.user?.userId });
     
     if (!settings) {
-      // Create default settings
       settings = new UserSettings({ userId: req.user?.userId });
       await settings.save();
     }
@@ -76,7 +73,6 @@ router.put('/privacy', [
     console.log('Updating privacy settings for user:', req.user?.userId);
     console.log('Privacy update data:', req.body);
     
-    // Build the update object with dot notation for nested fields
     const updateFields: any = {};
     Object.keys(req.body).forEach(key => {
       updateFields[`privacy.${key}`] = req.body[key];
@@ -97,7 +93,6 @@ router.put('/privacy', [
 
     console.log('Updated privacy settings:', settings.privacy);
 
-    // Handle user privacy flag update
     const userPrivacy = settings.privacy?.profileVisibility;
     if (userPrivacy) {
       const user = await User.findById(req.user?.userId);
@@ -132,7 +127,6 @@ router.put('/notifications', [
     console.log('Updating notification settings for user:', req.user?.userId);
     console.log('Notification update data:', req.body);
     
-    // Build the update object with dot notation for nested fields
     const updateFields: any = {};
     Object.keys(req.body).forEach(category => {
       if (req.body[category] && typeof req.body[category] === 'object') {
@@ -181,7 +175,6 @@ router.put('/appearance', [
     console.log('Updating appearance settings for user:', req.user?.userId);
     console.log('Appearance update data:', req.body);
     
-    // Build the update object with dot notation for nested fields
     const updateFields: any = {};
     Object.keys(req.body).forEach(key => {
       updateFields[`appearance.${key}`] = req.body[key];
@@ -257,7 +250,6 @@ router.put('/security', [
     console.log('Updating security settings for user:', req.user?.userId);
     console.log('Security update data:', req.body);
     
-    // Build the update object with dot notation for nested fields
     const updateFields: any = {};
     Object.keys(req.body).forEach(key => {
       updateFields[`security.${key}`] = req.body[key];
@@ -361,7 +353,6 @@ router.put('/content', [
     console.log('Updating content settings for user:', req.user?.userId);
     console.log('Content update data:', req.body);
     
-    // Build the update object with dot notation for nested fields
     const updateFields: any = {};
     Object.keys(req.body).forEach(key => {
       updateFields[`content.${key}`] = req.body[key];
@@ -451,7 +442,7 @@ router.post('/reactivate', authenticateToken, async (req: Request, res: Response
 router.post('/schedule-delete', authenticateToken, async (req: Request, res: Response) => {
   try {
     const deleteDate = new Date();
-    deleteDate.setDate(deleteDate.getDate() + 30); // 30 days from now
+    deleteDate.setDate(deleteDate.getDate() + 30); 
     
     console.log('Scheduling account deletion for user:', req.user?.userId, 'on:', deleteDate);
     

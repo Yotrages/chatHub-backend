@@ -1,7 +1,7 @@
 import express from 'express';
 import { Request, Response} from 'express'
 import MemoryThread from '../Models/MemoryThreads';
-import { authenticateToken } from '../middleware/authMiddleware'; // Your existing auth middleware
+import { authenticateToken } from '../middleware/authMiddleware'; 
 import { Comment, Post } from '../Models/Post';
 
 const router = express.Router();
@@ -48,7 +48,6 @@ router.get('/memory-threads/:threadId/details', authenticateToken, async (req: R
 
     const contextItems = [];
 
-    // Get related posts
     for (const postId of memoryThread.relatedPosts) {
       try {
         const post = await Post.findById(postId)
@@ -105,7 +104,7 @@ router.get('/memory-threads/:threadId/details', authenticateToken, async (req: R
     res.json({
       success: true,
       memoryThread,
-      contextItems: contextItems.slice(0, 20) // Limit to 20 most relevant items
+      contextItems: contextItems.slice(0, 20) 
     });
 
   } catch (error) {

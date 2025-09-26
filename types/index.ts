@@ -1,6 +1,6 @@
 import { Request } from "express";
 import { Document, Types } from "mongoose";
-import { Server as SocketIOServer } from 'socket.io';
+import { Server as SocketIOServer } from "socket.io";
 
 export interface IUser extends Document {
   _id: string;
@@ -20,9 +20,9 @@ export interface IUser extends Document {
   followersCount?: number;
   followingCount?: number;
   postsCount?: number;
-  followers?: Types.ObjectId[]
-  following?: Types.ObjectId[]
-  archived?: Types.ObjectId[]
+  followers?: Types.ObjectId[];
+  following?: Types.ObjectId[];
+  archived?: Types.ObjectId[];
   location?: string;
   website?: string;
   isVerified: boolean;
@@ -31,9 +31,9 @@ export interface IUser extends Document {
     postId: Types.ObjectId;
     savedAt: Date;
   }[];
-  likedPost: Types.ObjectId[]
-  savedReel: Types.ObjectId[]
-  likedReel: Types.ObjectId[]
+  likedPost: Types.ObjectId[];
+  savedReel: Types.ObjectId[];
+  likedReel: Types.ObjectId[];
 }
 
 export interface IMessage extends Document {
@@ -45,6 +45,7 @@ export interface IMessage extends Document {
   timestamp: Date;
   edited?: boolean;
   messageType?: string;
+  callStatus?: "missed" | "ended" | "declined" | "failed";
   fileUrl?: string;
   fileName?: string;
   editedAt?: Date;
@@ -61,7 +62,7 @@ export interface IMessage extends Document {
   readBy: {
     userId: Types.ObjectId;
     readAt: Date;
-  }[]
+  }[];
 }
 
 export interface IReels extends Document {
@@ -69,7 +70,6 @@ export interface IReels extends Document {
   fileUrl: string;
   title: string;
   authorId: Types.ObjectId;
-  viewedAt: Date;
   reactions: {
     userId: string;
     emoji: {
@@ -77,10 +77,13 @@ export interface IReels extends Document {
       name: string;
     };
   }[];
-    viewers: Types.ObjectId[];
+  viewers: {
+    viewer: Types.ObjectId;
+    viewedAt?: Date;
+  }[];
   shareCount: number;
   commentsCount: number;
-    visibility: 'public' | 'private' | 'friends';
+  visibility: "public" | "private" | "friends";
   comments: Types.DocumentArray<IComment>;
   createdAt?: Date;
   updatedAt?: Date;
@@ -90,11 +93,13 @@ export interface IReels extends Document {
 export interface IStories extends Document {
   type: "video" | "image";
   fileType: string;
-  viewers: Types.ObjectId[];
+  viewers: {
+    viewer: Types.ObjectId;
+    viewedAt?: Date;
+  }[];
   fileUrl: string;
   text?: string;
   textStyle?: string;
-  viewedAt?: Date;
   authorId: Types.ObjectId;
   textPosition: {
     x: number;
@@ -147,22 +152,6 @@ export interface IComment extends Document {
   updatedAt?: Date;
 }
 
-// export interface IReply extends Document {
-//   authorId: Types.ObjectId;
-//   content: string;
-//   file?: string;
-//   reactions: {
-//     userId: string;
-//     emoji: {
-//       category: string;
-//       name: string;
-//     };
-//   }[];
-//   replies?: IReply[]; // This matches the embedded schema
-//   createdAt?: Date;
-//   updatedAt?: Date;
-// }
-
 export interface IPost extends Document {
   _id: Types.ObjectId;
   authorId: Types.ObjectId;
@@ -180,7 +169,7 @@ export interface IPost extends Document {
   comments: Types.DocumentArray<IComment>;
   createdAt?: Date;
   updatedAt?: Date;
-  visibility: 'public' | 'private' | 'friends';
+  visibility: "public" | "private" | "friends";
   isDeleted: boolean;
   isEdited: boolean;
   editedAt: Date;
@@ -224,8 +213,6 @@ declare global {
   }
 }
 
-
-
 export interface AuthRequest extends Request {
   user?: {
     userId?: string;
@@ -261,7 +248,15 @@ export interface INotification {
     | "like_comment"
     | "online_status";
   message: string;
-  entityType: "post" | "reel" | "comment" | "message" | "user" | "conversation" | "story" | "reply";
+  entityType:
+    | "post"
+    | "reel"
+    | "comment"
+    | "message"
+    | "user"
+    | "conversation"
+    | "story"
+    | "reply";
   entityId: Types.ObjectId;
   isRead: boolean;
   actionUrl?: string;
@@ -300,7 +295,6 @@ export interface ClientToServerEvents {
   "leave-room": (room: string) => void;
 }
 
-
 export interface IProduct extends Document {
   authorId: Types.ObjectId;
   name: string;
@@ -311,4 +305,14 @@ export interface IProduct extends Document {
   license?: string;
   isDeleted: boolean;
   images?: string[];
+}
+
+export interface CallSession {
+  callId: string;
+  caller: string;
+  callee: string;
+  isVideo: boolean;
+  status: 'calling' | 'ringing' | 'connected' | 'ended';
+  startTime?: Date;
+  endTime?: Date;
 }

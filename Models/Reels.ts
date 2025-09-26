@@ -22,7 +22,6 @@ const reactionSchema = new Schema(
   { timestamps: true }
 );
 
-// Comment schema with self-referencing for unlimited nesting
 const commentSchema = new Schema<IComment>(
   {
     dynamicId: {
@@ -33,7 +32,7 @@ const commentSchema = new Schema<IComment>(
     parentCommentId: {
       type: Schema.Types.ObjectId,
       ref: "Comment",
-      default: null, // null means it's a top-level comment
+      default: null, 
     },
     authorId: {
       type: Schema.Types.ObjectId,
@@ -61,7 +60,6 @@ const commentSchema = new Schema<IComment>(
     editedAt: {
       type: Date,
     },
-    // For soft delete
     isDeleted: {
       type: Boolean,
       default: false,
@@ -79,13 +77,17 @@ const reelsSchema = new Schema<IReels>(
     title: {
       type: String,
     },
-    viewers: [{
-        type: Schema.Types.ObjectId,
-        ref: "User"
-      }],
-      viewedAt: {
-    type: Date
-  },
+    viewers: [
+      {
+        viewer: {
+          type: Schema.Types.ObjectId,
+          ref: "User",
+        },
+        viewedAt: {
+          type: Date,
+        },
+      },
+    ],
     authorId: {
       type: Schema.Types.ObjectId,
       ref: "User",
@@ -102,7 +104,6 @@ const reelsSchema = new Schema<IReels>(
       enum: ["public", "friends", "private"],
       default: "public",
     },
-    // For soft delete
     isDeleted: {
       type: Boolean,
       default: false,
@@ -115,24 +116,6 @@ commentSchema.index({ dynamicId: 1, parentCommentId: 1, createdAt: -1 });
 commentSchema.index({ authorId: 1 });
 
 reelsSchema.index({ authorId: 1, createdAt: -1 });
-
-// commentSchema.post('save', async function() {
-//   if (this.isNew && !this.isDeleted) {
-//     // Update post comment count
-//     await mongoose.model('Reels').findByIdAndUpdate(
-//       this.dynamicId,
-//       { $inc: { commentsCount: 1 } }
-//     );
-
-//     // Update parent comment reply count if it's a reply
-//     if (this.parentCommentId) {
-//       await mongoose.model('Comment').findByIdAndUpdate(
-//         this.parentCommentId,
-//         { $inc: { repliesCount: 1 } }
-//       );
-//     }
-//   }
-// });
 
 export const ReelComment = mongoose.model("ReelComment", commentSchema);
 export const Reels = mongoose.model("Reels", reelsSchema);

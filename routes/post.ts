@@ -21,8 +21,8 @@ const storage = new CloudinaryStorage({
 const upload = multer({ 
   storage,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-    files: 5 // Max 5 images per post
+    fileSize: 10 * 1024 * 1024, 
+    files: 5 
   }
 });
 

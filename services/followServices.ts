@@ -13,19 +13,16 @@ export class FollowService {
         throw new Error("Users cannot follow themselves");
       }
 
-      // Check if follow relationship already exists
       const existingFollow = await Follow.findOne({ followerId, followingId });
       if (existingFollow) {
         throw new Error("Already following this user");
       }
 
-      // Check if the user being followed exists
       const userToFollow = await User.findById(followingId);
       if (!userToFollow) {
         throw new Error("User not found");
       }
 
-      // Create follow relationship
       const follow = new Follow({
         followerId,
         followingId,
@@ -34,7 +31,6 @@ export class FollowService {
 
       await follow.save();
 
-      // Update follower/following counts
       if (follow.status === "accepted") {
         await User.findByIdAndUpdate(followerId, {
           $inc: { followingCount: 1 },
@@ -50,7 +46,6 @@ export class FollowService {
         });
       }
 
-      // Create notification for the followed user
       const follower = await User.findById(followerId);
       await NotificationService.createNotification({
         recipientId: followingId,
@@ -79,7 +74,6 @@ export class FollowService {
         throw new Error("Follow relationship not found");
       }
 
-      // Update follower/following counts
       await User.findByIdAndUpdate(followerId, {
         $inc: { followingCount: -1 },
       });

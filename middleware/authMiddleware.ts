@@ -11,7 +11,7 @@ export const authenticateToken = async (
 ): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    const token = authHeader && authHeader.split(' ')[1]; 
 
     if (!token) {
       res.status(HTTP_STATUS.UNAUTHORIZED).json({
@@ -21,10 +21,8 @@ export const authenticateToken = async (
       return;
     }
 
-    // Verify token
     const decoded = jwt.verify(token, config.JWT_SECRET) as JWTPayload;
     
-    // Check if user exists
     const user = await User.findById(decoded.userId);
     if (!user) {
       res.status(HTTP_STATUS.UNAUTHORIZED).json({
@@ -34,7 +32,6 @@ export const authenticateToken = async (
       return;
     }
 
-    // Add user info to request
     req.user = {
       userId: decoded.userId,
       email: decoded.email,

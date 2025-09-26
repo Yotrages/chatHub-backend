@@ -14,9 +14,9 @@ export class storiesController {
       const skip = (page - 1) * limit;
 
       const stories = await Stories.find()
-        .populate("authorId", "username name avatar")
-        .populate("reactions.userId", "username name avatar") // Fixed: populate reactions instead of likes
-        .sort({ createdAt: -1 }) // Most recent first
+        .populate("authorId", "username avatar")
+        .populate("reactions.userId", "username avatar") 
+        .sort({ createdAt: -1 }) 
         .skip(skip)
         .limit(limit);
 
@@ -161,7 +161,6 @@ export class storiesController {
     }
   }
 
-  // Like/Unlike story
   static async storiesReaction(req: AuthRequest, res: Response) {
     try {
       const { storyId } = req.params;
@@ -196,7 +195,7 @@ export class storiesController {
       const userObjectId = new Types.ObjectId(userId);
       const hasReacted = story.reactions.some(
         (r) => r.userId.toString() === userObjectId.toString()
-      ); // Fixed: proper comparison
+      ); 
 
       if (hasReacted) {
         story.reactions = story.reactions.filter(
@@ -204,7 +203,6 @@ export class storiesController {
         );
       } else {
         story.reactions.push({ userId, emoji });
-        // Notify story author (if not self)
         if (story.authorId.toString() !== userId) {
           const sender = await User.findById(userId).select("username name");
           await NotificationService.createNotification({
@@ -222,13 +220,13 @@ export class storiesController {
       }
 
       await story.save();
-      await story.populate("reactions.userId", "username avatar name");
+      await story.populate("reactions.userId", "username avatar");
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
         data: {
           storyId: storyId,
-          reactions: story.reactions, // Fixed: use reactions instead of likes
+          reactions: story.reactions, 
           reactionsCount: story.reactions.length,
           isLiked: !hasReacted,
           userId,
@@ -247,7 +245,6 @@ export class storiesController {
     }
   }
 
-  // Delete story
   static async deleteStories(req: AuthRequest, res: Response) {
     try {
       const userId = req.user?.userId;
@@ -303,7 +300,6 @@ export class storiesController {
     }
   }
 
-  // Get story viewers (only for story owner)
   static async getStoryViewers(req: AuthRequest, res: Response) {
     try {
       const userId = req.user?.userId;
@@ -351,7 +347,6 @@ export class storiesController {
           viewers: story.viewers,
           viewersCount: story.viewers.length,
           storyId,
-          viewedAt: story.viewedAt
         },
       });
     } catch (error: any) {
@@ -364,7 +359,6 @@ export class storiesController {
     }
   }
 
-  // Set story viewer (track view)
   static async setStoryViewers(req: AuthRequest, res: Response) {
     try {
       const userId = req.user?.userId;
@@ -397,7 +391,7 @@ export class storiesController {
       
       const userObjectId = new mongoose.Types.ObjectId(userId);
       const alreadyViewed = story.viewers.some((viewer) =>
-        viewer.equals(userObjectId)
+        viewer.viewer.equals(userObjectId)
       );
 
       if (alreadyViewed) {
@@ -420,8 +414,8 @@ export class storiesController {
           )
       );
 
-      story.viewers.push(userObjectId);
-      story.viewedAt = new Date(Date.now())
+      const date = new Date(Date.now())
+      story.viewers.push({viewer: userObjectId, viewedAt: date});
       await story.save();
       await story.populate("viewers", "username avatar name");
 
@@ -457,8 +451,8 @@ export class storiesController {
       }
 
       const stories = await Stories.find({ authorId: userId })
-        .populate("authorId", "username name avatar")
-        .populate("reactions.userId", "username name avatar") // Fixed: populate reactions instead of likes
+        .populate("authorId", "username avatar")
+        .populate("reactions.userId", "username avatar") 
         .sort({ createdAt: -1 });
 
         res.status(HTTP_STATUS.OK).json({
@@ -484,8 +478,8 @@ export class storiesController {
       const stories = await Stories.find({
         createdAt: { $gte: weekAgo },
       })
-        .populate("authorId", "username name avatar")
-        .populate("reactions.userId", "username name avatar") // Fixed: populate reactions instead of likes
+        .populate("authorId", "username avatar")
+        .populate("reactions.userId", "username avatar") 
         .sort({
           reactions: -1,
         })

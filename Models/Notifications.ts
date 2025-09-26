@@ -46,13 +46,12 @@ const notificationSchema = new Schema<INotification>({
     default: false,
   },
   actionUrl: {
-    type: String, // URL to navigate to when notification is clicked
+    type: String, 
   },
 }, {
   timestamps: true,
 });
 
-// Indexes for efficient queries
 notificationSchema.index({ recipientId: 1, isRead: 1 });
 notificationSchema.index({ recipientId: 1, createdAt: -1 });
 notificationSchema.index({ senderId: 1 });
