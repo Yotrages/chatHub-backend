@@ -59,17 +59,17 @@ export class PostsController {
         await Post.populate(posts, [
           {
             path: "authorId",
-            select: "username name avatar",
+            select: "username avatar",
           },
           {
             path: "reactions.userId",
-            select: "username name avatar",
+            select: "username avatar",
           },
         ]);
       } else {
         posts = await Post.find({ isDeleted: false })
-          .populate("authorId", "username name avatar")
-          .populate("reactions.userId", "username name avatar")
+          .populate("authorId", "username avatar")
+          .populate("reactions.userId", "username avatar")
           .sort({ createdAt: -1 })
           .skip(skip)
           .limit(limit);
@@ -109,8 +109,8 @@ export class PostsController {
         parentCommentId: null,
         isDeleted: false,
       })
-        .populate("authorId", "username name avatar")
-        .populate("reactions.userId", "username name avatar")
+        .populate("authorId", "username avatar")
+        .populate("reactions.userId", "username avatar")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);
@@ -181,8 +181,8 @@ export class PostsController {
       parentCommentId,
       isDeleted: false,
     })
-      .populate("authorId", "username name avatar")
-      .populate("reactions.userId", "username name avatar")
+      .populate("authorId", "username avatar")
+      .populate("reactions.userId", "username avatar")
       .sort({ createdAt: 1 });
 
     const repliesWithNested = await Promise.all(
@@ -202,16 +202,14 @@ export class PostsController {
 
   static async createPost(req: AuthRequest, res: Response): Promise<void> {
     try {
-      const { content } = req.body;
+      const { content, visibility } = req.body;
       const files = req.files as Express.Multer.File[];
       const userId = req.user?.userId;
 
       if (!userId) {
-        res
-          .status(HTTP_STATUS.UNAUTHORIZED)
-          .json({ error: "User not authenticated" });
-        return;
-      }
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      return;
+    }
 
       const userSettings = await UserSettings.findOne({ userId });
       if (userSettings?.account.isDeactivated) {
@@ -228,7 +226,7 @@ export class PostsController {
         return;
       }
 
-      const visibility = userSettings?.privacy.profileVisibility || "public";
+      const settingsVisibility = userSettings?.privacy.profileVisibility || "public";
 
       const imageUrls = files ? files.map((file) => file.path) : [];
       const post = new Post({
@@ -236,18 +234,18 @@ export class PostsController {
         authorId: userId,
         images: imageUrls,
         reactions: [],
-        visibility,
+        visibility: visibility ? visibility : settingsVisibility,
       });
 
       await post.save();
-      await post.populate("authorId", "username name avatar");
+      await post.populate("authorId", "username avatar");
       await User.findByIdAndUpdate(userId, {
         $inc: { postsCount: 1 },
       });
 
       if (content && userSettings?.notifications.inApp.mentioned) {
         const mentionedUserIds = await detectMentions(content);
-        const sender = await User.findById(userId).select("username name");
+        const sender = await User.findById(userId).select("username");
         for (const mentionedUserId of mentionedUserIds) {
           let mentionedObjectId = new mongoose.Types.ObjectId(mentionedUserId);
           if (mentionedUserId !== userId) {
@@ -344,10 +342,10 @@ export class PostsController {
       }
 
       await newComment.save();
-      await newComment.populate("authorId", "username name avatar");
+      await newComment.populate("authorId", "username avatar");
 
       if (!parentCommentId && post.authorId.toString() !== authorId) {
-        const sender = await User.findById(authorId).select("username name");
+        const sender = await User.findById(authorId).select("username");
         await NotificationService.createNotification({
           recipientId: post.authorId.toString(),
           senderId: authorId,
@@ -364,7 +362,7 @@ export class PostsController {
       if (parentCommentId) {
         const parentComment = await Comment.findById(parentCommentId);
         if (parentComment && parentComment.authorId.toString() !== authorId) {
-          const sender = await User.findById(authorId).select("username name");
+          const sender = await User.findById(authorId).select("username");
           await NotificationService.createNotification({
             recipientId: parentComment.authorId.toString(),
             senderId: authorId,
@@ -380,7 +378,7 @@ export class PostsController {
       }
 
       const mentionedUserIds = await detectMentions(content);
-      const sender = await User.findById(authorId).select("username name");
+      const sender = await User.findById(authorId).select("username");
       for (const mentionedUserId of mentionedUserIds) {
         if (mentionedUserId !== authorId) {
           await NotificationService.createNotification({
@@ -419,11 +417,9 @@ export class PostsController {
       const userId = req.user?.userId;
 
       if (!userId) {
-        res
-          .status(HTTP_STATUS.UNAUTHORIZED)
-          .json({ error: "User not authenticated" });
-        return;
-      }
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      return;
+    }
 
       const post = await Post.findById(postId);
       if (!post) {
@@ -470,7 +466,7 @@ export class PostsController {
         actionType = "added";
 
         if (post.authorId.toString() !== userId) {
-          const sender = await User.findById(userId).select("username name");
+          const sender = await User.findById(userId).select("username");
           await NotificationService.createNotification({
             recipientId: post.authorId.toString(),
             senderId: userId,
@@ -486,7 +482,7 @@ export class PostsController {
       }
 
       await post.save();
-      await post.populate("reactions.userId", "username name avatar");
+      await post.populate("reactions.userId", "username avatar");
       const user = await User.findById(userId);
       if (!user) {
         res.status(HTTP_STATUS.NOT_FOUND).json({ error: "User not found" });
@@ -523,11 +519,9 @@ export class PostsController {
       const userId = req.user?.userId;
 
       if (!userId) {
-        res
-          .status(HTTP_STATUS.UNAUTHORIZED)
-          .json({ error: "User not authenticated" });
-        return;
-      }
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      return;
+    }
 
       const comment = await Comment.findById(commentId);
       if (!comment) {
@@ -575,7 +569,7 @@ export class PostsController {
         actionType = "added";
 
         if (comment.authorId.toString() !== userId) {
-          const sender = await User.findById(userId).select("username name");
+          const sender = await User.findById(userId).select("username");
           await NotificationService.createNotification({
             recipientId: comment.authorId.toString(),
             senderId: userId,
@@ -591,7 +585,7 @@ export class PostsController {
       }
 
       await comment.save();
-      await comment.populate("reactions.userId", "username name avatar");
+      await comment.populate("reactions.userId", "username avatar");
 
       res.json({
         reactions: comment.reactions,
@@ -672,7 +666,7 @@ export class PostsController {
       comment.isEdited = true;
       comment.editedAt = new Date();
       await comment.save();
-      await comment.populate("authorId", "username name avatar");
+      await comment.populate("authorId", "username avatar");
 
       res.json({
         success: true,
@@ -692,8 +686,8 @@ export class PostsController {
       const { id } = req.params;
 
       const post = await Post.findById(id)
-        .populate("authorId", "username name avatar")
-        .populate("reactions.userId", "username name avatar");
+        .populate("authorId", "username avatar")
+        .populate("reactions.userId", "username avatar");
 
       if (!post) {
         res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Post not found" });
@@ -705,8 +699,8 @@ export class PostsController {
       //   parentCommentId: null,
       //   isDeleted: false,
       // })
-      //   .populate("authorId", "username name avatar")
-      //   .populate("reactions.userId", "username name avatar")
+      //   .populate("authorId", "username avatar")
+      //   .populate("reactions.userId", "username avatar")
       //   .sort({ createdAt: -1 });
 
       // // Get nested replies for each comment
@@ -784,16 +778,14 @@ export class PostsController {
   static async updatePost(req: AuthRequest, res: Response) {
     const authorId = req.user?.userId;
     const { postId } = req.params;
-    const { content, existingImages } = req.body;
+    const { content, existingImages, visibility } = req.body;
     const images = req.files as Express.Multer.File[];
 
     try {
       if (!authorId) {
-        res
-          .status(HTTP_STATUS.UNAUTHORIZED)
-          .json({ error: "User not authenticated" });
-        return;
-      }
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      return;
+    }
 
       if (!content && (!images || images.length === 0)) {
         res
@@ -816,6 +808,7 @@ export class PostsController {
 
       const updateData: any = {};
       if (content) updateData.content = content;
+      if (visibility) updateData.visibility = visibility
       if (images && images.length > 0) {
         const newImages = images.map((image) => image.path);
         if (existingImages && existingImages.length > 0) {
@@ -843,8 +836,8 @@ export class PostsController {
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED);
-      throw new Error("User not authenticated");
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      return;
     }
 
     if (!postId) {

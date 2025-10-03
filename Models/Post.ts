@@ -115,6 +115,7 @@ commentSchema.index({ dynamicId: 1, parentCommentId: 1, createdAt: -1 });
 commentSchema.index({ authorId: 1 });
 postSchema.index({ authorId: 1, createdAt: -1 });
 postSchema.index({ createdAt: -1 });
+postSchema.index({ content: 'text' });
 
 export const Comment = mongoose.model("Comment", commentSchema);
 export const Post = mongoose.model("Post", postSchema);

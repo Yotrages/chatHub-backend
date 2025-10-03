@@ -65,12 +65,9 @@ export class storiesController {
       const file = req.file as Express.Multer.File;
 
       if (!userId) {
-        res.status(HTTP_STATUS.UNAUTHORIZED).json({
-          success: false,
-          error: "Only authenticated users can post stories",
-        });
-        return;
-      }
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      return;
+    }
 
       if (!file && !text) {
         res.status(HTTP_STATUS.BAD_REQUEST).json({
@@ -123,12 +120,11 @@ export class storiesController {
       });
 
       await newStories.save();
-      await newStories.populate("authorId", "username name avatar");
+      await newStories.populate("authorId", "username avatar");
 
-      // Notify mentioned users in story text
       if (text) {
         const mentionedUserIds = await detectMentions(text);
-        const sender = await User.findById(userId).select("username name");
+        const sender = await User.findById(userId).select("username");
         for (const mentionedUserId of mentionedUserIds) {
           if (mentionedUserId !== userId) {
             await NotificationService.createNotification({
@@ -167,13 +163,10 @@ export class storiesController {
       const { emoji } = req.body;
       const userId = req.user?.userId;
 
-      if (!userId) {
-         res.status(HTTP_STATUS.UNAUTHORIZED).json({
-          success: false,
-          error: "User not authenticated",
-        });
-        return;
-      }
+     if (!userId) {
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      return;
+    }
 
       if (!storyId || !mongoose.Types.ObjectId.isValid(storyId)) {
         res.status(HTTP_STATUS.BAD_REQUEST).json({
@@ -204,7 +197,7 @@ export class storiesController {
       } else {
         story.reactions.push({ userId, emoji });
         if (story.authorId.toString() !== userId) {
-          const sender = await User.findById(userId).select("username name");
+          const sender = await User.findById(userId).select("username");
           await NotificationService.createNotification({
             recipientId: story.authorId.toString(),
             senderId: userId,
@@ -251,12 +244,9 @@ export class storiesController {
       const { storyId } = req.params;
 
       if (!userId) {
-        res.status(HTTP_STATUS.UNAUTHORIZED).json({
-          success: false,
-          error: "User not authenticated",
-        });
-        return;
-      }
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      return;
+    }
 
       if (!storyId || !mongoose.Types.ObjectId.isValid(storyId)) {
         res.status(HTTP_STATUS.BAD_REQUEST).json({
@@ -306,12 +296,9 @@ export class storiesController {
       const { storyId } = req.params;
 
       if (!userId) {
-        res.status(HTTP_STATUS.UNAUTHORIZED).json({
-          success: false,
-          error: "User not authenticated",
-        });
-        return;
-      }
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      return;
+    }
 
       if (!storyId || !mongoose.Types.ObjectId.isValid(storyId)) {
         res.status(HTTP_STATUS.BAD_REQUEST).json({
@@ -323,7 +310,7 @@ export class storiesController {
 
       const story = await Stories.findById(storyId).populate(
         "viewers",
-        "username name avatar"
+        "username avatar"
       );
       if (!story) {
         res.status(HTTP_STATUS.NOT_FOUND).json({
@@ -365,12 +352,9 @@ export class storiesController {
       const { storyId } = req.params;
 
       if (!userId) {
-        res.status(HTTP_STATUS.UNAUTHORIZED).json({
-          success: false,
-          error: "User not authenticated",
-        });
-        return;
-      }
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      return;
+    }
       
       if (!storyId || !mongoose.Types.ObjectId.isValid(storyId)) {
         res.status(HTTP_STATUS.BAD_REQUEST).json({
@@ -417,7 +401,7 @@ export class storiesController {
       const date = new Date(Date.now())
       story.viewers.push({viewer: userObjectId, viewedAt: date});
       await story.save();
-      await story.populate("viewers", "username avatar name");
+      await story.populate("viewers", "username avatar");
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
@@ -442,13 +426,10 @@ export class storiesController {
     try {
       const userId = req.user?.userId;
 
-      if (!userId) {
-        res.status(HTTP_STATUS.UNAUTHORIZED).json({
-          success: false,
-          error: "User not authenticated",
-        });
-        return;
-      }
+     if (!userId) {
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      return;
+    }
 
       const stories = await Stories.find({ authorId: userId })
         .populate("authorId", "username avatar")

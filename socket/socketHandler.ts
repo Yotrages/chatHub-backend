@@ -386,19 +386,53 @@ export class SocketHandler {
       socket.emit("message_error", { error: "Failed to delete message" });
     }
   }
-  private async handleAddReaction(socket: any, data: any) {
+  private async handleAddReaction(socket: Socket, data: any) {
     try {
+      const userId = socket.userId
       const { messageId, emoji, name } = data;
       const message = await Message.findById(messageId);
       if (!message) {
         socket.emit("message_error", { error: "Message not found" });
         return;
       }
-      message.reactions =
-        message.reactions?.filter(
-          (r) => r.userId.toString() !== socket.userId
-        ) || [];
-      message.reactions.push({ userId: socket.userId, emoji: { category: emoji, name} });
+      message.reactions = message.reactions.filter(
+            (reaction, index, self) =>
+              index ===
+              self.findIndex(
+                (r) => r.userId.toString() === reaction.userId.toString()
+              )
+          );
+    
+          const existingReactionIndex = message.reactions.findIndex(
+            (r) => r.userId.toString() === userId
+          );
+    
+          let isLiked = false;
+          let actionType = "";
+    
+          if (existingReactionIndex !== -1) {
+            const existingReaction = message.reactions[existingReactionIndex];
+            if (existingReaction.emoji.category === emoji) {
+              message.reactions.splice(existingReactionIndex, 1);
+              isLiked = false;
+              actionType = "removed";
+            } else {
+              message.reactions[existingReactionIndex].emoji = {
+                category: emoji,
+                name,
+              };
+              isLiked = true;
+              actionType = "updated";
+            }
+          } else {
+            message.reactions.push({
+              userId: userId,
+              emoji: { category: emoji, name },
+            });
+            isLiked = true;
+            actionType = "added";
+          }
+
       await message.save();
       await message.populate("senderId", "username avatar");
       this.io

@@ -16,9 +16,7 @@ export const getConversations = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res
-        .status(HTTP_STATUS.UNAUTHORIZED)
-        .json({ error: "User not authenticated" });
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
       return;
     }
 
@@ -59,9 +57,7 @@ export const createConversation = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res
-        .status(HTTP_STATUS.UNAUTHORIZED)
-        .json({ error: "User not authenticated" });
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
       return;
     }
 
@@ -109,8 +105,7 @@ export const createConversation = async (
     await conversation.save();
     await conversation.populate("participants", "username avatar online");
 
-    // Notify participants (except the creator)
-    const sender = await User.findById(userId).select("username name");
+    const sender = await User.findById(userId).select("username avatar");
     for (const participantId of participantIds) {
       if (participantId !== userId) {
         await NotificationService.createNotification({
@@ -145,7 +140,7 @@ export const getMessages = async (
     const { page = 1, limit = 50 } = req.query;
     const messages = await Message.find({ conversationId })
       .populate([
-        { path: "senderId", select: "username avatar name" },
+        { path: "senderId", select: "username avatar" },
         { path: "reactions.userId", select: "username avatar" },
         {
           path: "replyTo",
@@ -182,9 +177,7 @@ export const sendMessage = async (
     const senderId = req.user?.userId;
 
     if (!senderId) {
-      res
-        .status(HTTP_STATUS.UNAUTHORIZED)
-        .json({ error: "User not authenticated" });
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
       return;
     }
 
@@ -265,7 +258,7 @@ export const sendMessage = async (
       req.io.to(conversationId).emit("new_message", { message });
     }
 
-    const sender = await User.findById(senderId).select("username name");
+    const sender = await User.findById(senderId).select("username avatar");
     for (const participantId of conversation.participants) {
       if (participantId.toString() !== senderId) {
         await NotificationService.createNotification({
@@ -302,9 +295,7 @@ export const updateConversation = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res
-        .status(HTTP_STATUS.UNAUTHORIZED)
-        .json({ error: "User not authenticated" });
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
       return;
     }
 
@@ -359,10 +350,8 @@ export const deleteConversation = async (
     const { conversationId } = req.params;
     const userId = req.user?.userId;
 
-    if (!userId) {
-      res
-        .status(HTTP_STATUS.UNAUTHORIZED)
-        .json({ error: "User not authenticated" });
+   if (!userId) {
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
       return;
     }
 
@@ -421,9 +410,7 @@ export const markMessagesAsRead = async (
     const { conversationId } = req.params;
     const userId = req.user?.userId;
     if (!userId) {
-      res
-        .status(HTTP_STATUS.UNAUTHORIZED)
-        .json({ error: "User not authenticated" });
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
       return;
     }
     await Message.updateMany(
@@ -462,9 +449,7 @@ export const editMessage = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res
-        .status(HTTP_STATUS.UNAUTHORIZED)
-        .json({ error: "User not authenticated" });
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
       return;
     }
 
@@ -511,10 +496,8 @@ export const deleteMessage = async (
     const { messageId } = req.params;
     const userId = req.user?.userId;
 
-    if (!userId) {
-      res
-        .status(HTTP_STATUS.UNAUTHORIZED)
-        .json({ error: "User not authenticated" });
+   if (!userId) {
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
       return;
     }
 
@@ -558,9 +541,7 @@ export const addReaction = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res
-        .status(HTTP_STATUS.UNAUTHORIZED)
-        .json({ error: "User not authenticated" });
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
       return;
     }
 
@@ -570,21 +551,56 @@ export const addReaction = async (
       return;
     }
 
-    message.reactions =
-      message.reactions?.filter((r) => r.userId.toString() !== userId) || [];
-    message.reactions.push({ userId, emoji: { category: emoji, name} });
+    message.reactions = message.reactions.filter(
+            (reaction, index, self) =>
+              index ===
+              self.findIndex(
+                (r) => r.userId.toString() === reaction.userId.toString()
+              )
+          );
+    
+          const existingReactionIndex = message.reactions.findIndex(
+            (r) => r.userId.toString() === userId
+          );
+    
+          let isLiked = false;
+          let actionType = "";
+    
+          if (existingReactionIndex !== -1) {
+            const existingReaction = message.reactions[existingReactionIndex];
+            if (existingReaction.emoji.category === emoji) {
+              message.reactions.splice(existingReactionIndex, 1);
+              isLiked = false;
+              actionType = "removed";
+            } else {
+              message.reactions[existingReactionIndex].emoji = {
+                category: emoji,
+                name,
+              };
+              isLiked = true;
+              actionType = "updated";
+            }
+          } else {
+            message.reactions.push({
+              userId: userId,
+              emoji: { category: emoji, name },
+            });
+            isLiked = true;
+            actionType = "added";
+          }
+    
 
     await message.save();
     await message.populate([
       {
         path: "senderId",
-        select: "username name avatar",
+        select: "username avatar",
       },
       {
         path: "reactions",
         populate: {
           path: "userId",
-          select: "username name avatar",
+          select: "username avatar",
         },
       },
     ]);
@@ -613,9 +629,7 @@ export const removeReaction = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res
-        .status(HTTP_STATUS.UNAUTHORIZED)
-        .json({ error: "User not authenticated" });
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
       return;
     }
 
@@ -653,9 +667,7 @@ export const fileUploader = async (req: AuthRequest, res: Response) => {
     const userId = req.user?.userId;
 
     if (!userId) {
-      res
-        .status(HTTP_STATUS.UNAUTHORIZED)
-        .json({ error: "User not authenticated" });
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
       return;
     }
 
@@ -686,10 +698,8 @@ export const pinMessage = async (
     const { conversationId, messageId } = req.params;
     const userId = req.user?.userId;
 
-    if (!userId) {
-      res
-        .status(HTTP_STATUS.UNAUTHORIZED)
-        .json({ error: "User not authenticated" });
+   if (!userId) {
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
       return;
     }
 
@@ -751,10 +761,8 @@ export const unpinMessage = async (
     const { conversationId, messageId } = req.params;
     const userId = req.user?.userId;
 
-    if (!userId) {
-      res
-        .status(HTTP_STATUS.UNAUTHORIZED)
-        .json({ error: "User not authenticated" });
+   if (!userId) {
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
       return;
     }
 
@@ -810,9 +818,7 @@ export const forwardMessage = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res
-        .status(HTTP_STATUS.UNAUTHORIZED)
-        .json({ error: "User not authenticated" });
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
       return;
     }
 
@@ -869,7 +875,7 @@ export const forwardMessage = async (
       });
     }
 
-    const sender = await User.findById(userId).select("username name");
+    const sender = await User.findById(userId).select("username");
     for (const participantId of targetConversation.participants) {
       if (participantId.toString() !== userId) {
         await NotificationService.createNotification({
@@ -904,10 +910,8 @@ export const starMessage = async (
     const { messageId } = req.params;
     const userId = req.user?.userId;
 
-    if (!userId) {
-      res
-        .status(HTTP_STATUS.UNAUTHORIZED)
-        .json({ error: "User not authenticated" });
+   if (!userId) {
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
       return;
     }
 
@@ -947,10 +951,8 @@ export const unstarMessage = async (
     const { messageId } = req.params;
     const userId = req.user?.userId;
 
-    if (!userId) {
-      res
-        .status(HTTP_STATUS.UNAUTHORIZED)
-        .json({ error: "User not authenticated" });
+   if (!userId) {
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
       return;
     }
 
@@ -983,9 +985,7 @@ export const getMessageInfo = async (
     const { messageId } = req.params;
     const userId = req.user?.userId;
     if (!userId) {
-      res
-        .status(HTTP_STATUS.UNAUTHORIZED)
-        .json({ error: "User not authenticated" });
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
       return;
     }
     const message = await Message.findById(messageId)
@@ -1025,9 +1025,9 @@ export const sharePostToChat = async (req: AuthRequest, res: Response) => {
   const { conversationId, content, postId } = req.body;
   const userId = req.user?.userId;
   if (!userId) {
-    res.status(HTTP_STATUS.UNAUTHORIZED);
-    throw new Error("User not authenticated");
-  }
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      return;
+    }
 
   if (!conversationId || !content || !postId) {
     res.status(HTTP_STATUS.BAD_REQUEST);

@@ -55,7 +55,7 @@ router.post('/conversations/:conversationId/messages', authenticateToken, sendMe
 router.put('/messages/:messageId', authenticateToken, editMessage);
 router.delete('/messages/:messageId', authenticateToken, deleteMessage);
 router.post('/messages/:messageId/reactions', authenticateToken, addReaction); 
-router.delete('/messages/:messageId/reactions', authenticateToken, removeReaction); 
+router.delete('/messages/:messageId/reactions/remove', authenticateToken, removeReaction); 
 router.post('/conversations/:conversationId/read', authenticateToken, markMessagesAsRead); 
 router.post('/upload', authenticateToken, upload.single('file'), fileUploader)
 router.post('/conversations/:conversationId/messages/:messageId/pin', authenticateToken, pinMessage)

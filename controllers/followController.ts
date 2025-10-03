@@ -157,7 +157,6 @@ export class FollowController {
 
       const follow = await FollowService.acceptFollowRequest(followId, userId);
 
-      // Notify the follower
       const recipient = await User.findById(follow.followerId).select('username');
       await NotificationService.createNotification({
         recipientId: follow.followerId.toString(),

@@ -128,6 +128,7 @@ userSchema.index(
   }
 );
 userSchema.index({ "savedPost.savedAt": 1 });
+userSchema.index({ username: 'text', bio: 'text' });
 
 userSchema.pre("save", function (next) {
   if (this.provider && !this.providerId) {

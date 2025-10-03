@@ -106,7 +106,7 @@ export class FollowService {
         followingId: userId,
         status: "accepted",
       })
-        .populate("followerId", "username name avatar email")
+        .populate("followerId", "username avatar email")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);
@@ -139,7 +139,7 @@ export class FollowService {
         followerId: userId,
         status: "accepted",
       })
-        .populate("followingId", "username name avatar email")
+        .populate("followingId", "username avatar email")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);
@@ -183,7 +183,7 @@ export class FollowService {
         followingId: userId,
         status: "pending",
       })
-        .populate("followerId", "username name avatar")
+        .populate("followerId", "username avatar")
         .sort({ createdAt: -1 });
 
       return pendingRequests;

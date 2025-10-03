@@ -56,5 +56,6 @@ const storiesSchema = new Schema<IStories>({
 }, { timestamps: true });
 
 storiesSchema.index({ authorId: 1 });
+storiesSchema.index({ text: 'text' });
 
 export const Stories = mongoose.model("Stories", storiesSchema);

@@ -52,17 +52,22 @@ export class ReelsController {
         await Reels.populate(reels, [
           {
             path: "authorId",
-            select: "username name avatar",
+            select: "username avatar",
           },
           {
             path: "reactions.userId",
-            select: "username name avatar",
+            select: "username avatar",
           },
+          {
+            path: "viewers.viewer",
+            select: "username avatar"
+          }
         ]);
       } else {
         reels = await Reels.find({ isDeleted: false })
-          .populate("authorId", "username name avatar")
-          .populate("reactions.userId", "username name avatar")
+          .populate("authorId", "username avatar")
+          .populate("reactions.userId", "username avatar")
+          .populate("viewers.viewer", "username avatar")
           .sort({ createdAt: -1 })
           .skip(skip)
           .limit(limit);
@@ -102,8 +107,8 @@ export class ReelsController {
         parentCommentId: null,
         isDeleted: false,
       })
-        .populate("authorId", "username name avatar")
-        .populate("reactions.userId", "username name avatar")
+        .populate("authorId", "username avatar")
+        .populate("reactions.userId", "username avatar")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);
@@ -145,38 +150,38 @@ export class ReelsController {
     }
   }
 
-   static async getSingleCommentReplies(req: Request, res: Response) {
-      try {
-        const { reelId, commentId } = req.body;
-  
-        const comment = await ReelComment.findOne({
-          _id: commentId,
-          dynamicId: reelId,
-          parentCommentId: null,
-        });
-        if (!comment) {
-          res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Comment not found" });
-          return;
-        }
-        const replies = await ReelsController.getNestedReplies(
-          comment._id.toString()
-        );
-  
-        const response = { ...comment.toObject(), replies };
-        res.status(HTTP_STATUS.OK).json({ comment: response });
-      } catch (error: any) {
-        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error });
+  static async getSingleCommentReplies(req: Request, res: Response) {
+    try {
+      const { reelId, commentId } = req.body;
+
+      const comment = await ReelComment.findOne({
+        _id: commentId,
+        dynamicId: reelId,
+        parentCommentId: null,
+      });
+      if (!comment) {
+        res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Comment not found" });
+        return;
       }
+      const replies = await ReelsController.getNestedReplies(
+        comment._id.toString()
+      );
+
+      const response = { ...comment.toObject(), replies };
+      res.status(HTTP_STATUS.OK).json({ comment: response });
+    } catch (error: any) {
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error });
     }
+  }
 
   static async getNestedReplies(parentCommentId: string): Promise<any[]> {
     const replies = await ReelComment.find({
       parentCommentId,
       isDeleted: false,
     })
-      .populate("authorId", "username name avatar")
-      .populate("reactions.userId", "username name avatar")
-      .sort({ createdAt: 1 }); 
+      .populate("authorId", "username avatar")
+      .populate("reactions.userId", "username avatar")
+      .sort({ createdAt: 1 });
 
     const repliesWithNested = await Promise.all(
       replies.map(async (reply) => {
@@ -200,20 +205,17 @@ export class ReelsController {
       const file = req.file as Express.Multer.File;
 
       if (!userId) {
-        res.status(HTTP_STATUS.UNAUTHORIZED).json({
-          success: false,
-          error: "Only authenticated users can Reels reels",
-        });
+        res.redirect(`${process.env.FRONTEND_URL}/login`);
         return;
       }
 
-        const userSettings = await UserSettings.findOne({ userId });
-            if (userSettings?.account.isDeactivated) {
-              res
-                .status(HTTP_STATUS.FORBIDDEN)
-                .json({ error: "Cannot create reel: Account is deactivated" });
-              return;
-            }
+      const userSettings = await UserSettings.findOne({ userId });
+      if (userSettings?.account.isDeactivated) {
+        res
+          .status(HTTP_STATUS.FORBIDDEN)
+          .json({ error: "Cannot create reel: Account is deactivated" });
+        return;
+      }
 
       if (!file) {
         res.status(HTTP_STATUS.BAD_REQUEST).json({
@@ -222,18 +224,18 @@ export class ReelsController {
         });
         return;
       }
-      
+
       const visibility = userSettings?.privacy.profileVisibility || "public";
       const newReels = new Reels({
         fileUrl: file.path,
         title,
         reactions: [],
         authorId: userId,
-        visibility
+        visibility,
       });
 
       await newReels.save();
-      await newReels.populate("authorId", "username name avatar");
+      await newReels.populate("authorId", "username avatar");
 
       res.status(HTTP_STATUS.CREATED).json({
         success: true,
@@ -292,11 +294,19 @@ export class ReelsController {
         createdAt: new Date(),
       });
 
+      if (parentCommentId) {
+        await ReelComment.findByIdAndUpdate(parentCommentId, {
+          $inc: { repliesCount: 1 },
+        });
+      } else {
+        await Reels.findByIdAndUpdate(reelId, { $inc: { commentsCount: 1 } });
+      }
+
       await newComment.save();
-      await newComment.populate("authorId", "username name avatar");
+      await newComment.populate("authorId", "username avatar");
 
       if (!parentCommentId && reel.authorId.toString() !== authorId) {
-        const sender = await User.findById(authorId).select("username name");
+        const sender = await User.findById(authorId).select("username");
         await NotificationService.createNotification({
           recipientId: reel.authorId.toString(),
           senderId: authorId,
@@ -311,7 +321,7 @@ export class ReelsController {
       if (parentCommentId) {
         const parentComment = await ReelComment.findById(parentCommentId);
         if (parentComment && parentComment.authorId.toString() !== authorId) {
-          const sender = await User.findById(authorId).select("username name");
+          const sender = await User.findById(authorId).select("username");
           await NotificationService.createNotification({
             recipientId: parentComment.authorId.toString(),
             senderId: authorId,
@@ -325,7 +335,7 @@ export class ReelsController {
       }
 
       const mentionedUserIds = await detectMentions(content);
-      const sender = await User.findById(authorId).select("username name");
+      const sender = await User.findById(authorId).select("username");
       for (const mentionedUserId of mentionedUserIds) {
         if (mentionedUserId !== authorId) {
           await NotificationService.createNotification({
@@ -364,9 +374,7 @@ export class ReelsController {
       const userId = req.user?.userId;
 
       if (!userId) {
-        res
-          .status(HTTP_STATUS.UNAUTHORIZED)
-          .json({ error: "User not authenticated" });
+        res.redirect(`${process.env.FRONTEND_URL}/login`);
         return;
       }
 
@@ -416,7 +424,7 @@ export class ReelsController {
         actionType = "added";
 
         if (reel.authorId.toString() !== userId) {
-          const sender = await User.findById(userId).select("username name");
+          const sender = await User.findById(userId).select("username");
           await NotificationService.createNotification({
             recipientId: reel.authorId.toString(),
             senderId: userId,
@@ -430,7 +438,7 @@ export class ReelsController {
       }
 
       await reel.save();
-      await reel.populate("reactions.userId", "username name avatar");
+      await reel.populate("reactions.userId", "username avatar");
 
       res.json({
         reactions: reel.reactions,
@@ -458,9 +466,7 @@ export class ReelsController {
       const userId = req.user?.userId;
 
       if (!userId) {
-        res
-          .status(HTTP_STATUS.UNAUTHORIZED)
-          .json({ error: "User not authenticated" });
+        res.redirect(`${process.env.FRONTEND_URL}/login`);
         return;
       }
 
@@ -510,7 +516,7 @@ export class ReelsController {
         actionType = "added";
 
         if (comment.authorId.toString() !== userId) {
-          const sender = await User.findById(userId).select("username name");
+          const sender = await User.findById(userId).select("username");
           await NotificationService.createNotification({
             recipientId: comment.authorId.toString(),
             senderId: userId,
@@ -524,7 +530,7 @@ export class ReelsController {
       }
 
       await comment.save();
-      await comment.populate("reactions.userId", "username name avatar");
+      await comment.populate("reactions.userId", "username avatar");
 
       res.json({
         reactions: comment.reactions,
@@ -605,7 +611,7 @@ export class ReelsController {
       comment.isEdited = true;
       comment.editedAt = new Date();
       await comment.save();
-      await comment.populate("authorId", "username name avatar");
+      await comment.populate("authorId", "username avatar");
 
       res.json({
         success: true,
@@ -625,8 +631,8 @@ export class ReelsController {
       const { id } = req.params;
 
       const reel = await Reels.findById(id)
-        .populate("authorId", "username name avatar")
-        .populate("reactions.userId", "username name avatar");
+        .populate("authorId", "username avatar")
+        .populate("reactions.userId", "username avatar");
 
       if (!reel) {
         res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Reels not found" });
@@ -638,8 +644,8 @@ export class ReelsController {
         parentCommentId: null,
         isDeleted: false,
       })
-        .populate("authorId", "username name avatar")
-        .populate("reactions.userId", "username name avatar")
+        .populate("authorId", "username avatar")
+        .populate("reactions.userId", "username avatar")
         .sort({ createdAt: -1 });
 
       const commentsWithReplies = await Promise.all(
@@ -724,9 +730,7 @@ export class ReelsController {
 
     try {
       if (!authorId) {
-        res
-          .status(HTTP_STATUS.UNAUTHORIZED)
-          .json({ error: "User not authenticated" });
+        res.redirect(`${process.env.FRONTEND_URL}/login`);
         return;
       }
 
@@ -773,8 +777,8 @@ export class ReelsController {
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED);
-      throw new Error("User not authenticated");
+      res.redirect(`${process.env.FRONTEND_URL}/login`);
+      return;
     }
 
     if (!reelId) {
@@ -829,141 +833,131 @@ export class ReelsController {
     }
   }
 
-   static async getReelViewers(req: AuthRequest, res: Response) {
-      try {
-        const userId = req.user?.userId;
-        const { reelId } = req.params;
-  
-        if (!userId) {
-          res.status(HTTP_STATUS.UNAUTHORIZED).json({
-            success: false,
-            error: "User not authenticated",
-          });
-          return;
-        }
-  
-        if (!reelId || !mongoose.Types.ObjectId.isValid(reelId)) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json({
-            success: false,
-            error: "Valid reel ID is required",
-          });
-          return;
-        }
-  
-        const reel = await Reels.findById(reelId).populate(
-          "viewers",
-          "username avatar"
-        );
-        if (!reel) {
-          res.status(HTTP_STATUS.NOT_FOUND).json({
-            success: false,
-            error: "reel not found",
-          });
-          return;
-        }
-  
-        if (reel.authorId.toString() !== userId) {
-          res.status(HTTP_STATUS.FORBIDDEN).json({
-            success: false,
-            error: "You are not authorized to view this reel's viewers",
-          });
-          return;
-        }
-  
-         res.status(HTTP_STATUS.OK).json({
-          success: true,
-          data: {
-            viewers: reel.viewers,
-            viewersCount: reel.viewers.length,
-            reelId,
-          },
-        });
-      } catch (error: any) {
-        console.error("Error fetching story viewers:", error);
-         res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-          success: false,
-          error: "Server error",
-          message: "Failed to fetch story viewers",
-        });
+  static async getReelViewers(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user?.userId;
+      const { reelId } = req.params;
+
+      if (!userId) {
+        res.redirect(`${process.env.FRONTEND_URL}/login`);
+        return;
       }
+
+      if (!reelId || !mongoose.Types.ObjectId.isValid(reelId)) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: "Valid reel ID is required",
+        });
+        return;
+      }
+
+      const reel = await Reels.findById(reelId).populate(
+        "viewers",
+        "username avatar"
+      );
+      if (!reel) {
+        res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: "reel not found",
+        });
+        return;
+      }
+
+      if (reel.authorId.toString() !== userId) {
+        res.status(HTTP_STATUS.FORBIDDEN).json({
+          success: false,
+          error: "You are not authorized to view this reel's viewers",
+        });
+        return;
+      }
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: {
+          viewers: reel.viewers,
+          viewersCount: reel.viewers.length,
+          reelId,
+        },
+      });
+    } catch (error: any) {
+      console.error("Error fetching story viewers:", error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: "Server error",
+        message: "Failed to fetch story viewers",
+      });
     }
-  
-    static async setReelViewers(req: AuthRequest, res: Response) {
-      try {
-        const userId = req.user?.userId;
-        const { reelId } = req.params;
-  
-        if (!userId) {
-          res.status(HTTP_STATUS.UNAUTHORIZED).json({
-            success: false,
-            error: "User not authenticated",
-          });
-          return;
-        }
-        
-        if (!reelId || !mongoose.Types.ObjectId.isValid(reelId)) {
-          res.status(HTTP_STATUS.BAD_REQUEST).json({
-            success: false,
-            error: "Valid reel ID is required",
-          });
-          return;
-        }
-        
-        const reel = await Reels.findById(reelId);
-        if (!reel) {
-          res.status(HTTP_STATUS.NOT_FOUND).json({
-            success: false,
-            error: "reel not found",
-          });
-          return;
-        }
-        
-        const userObjectId = new mongoose.Types.ObjectId(userId);
-        const alreadyViewed = reel.viewers.some((viewer) =>
-          viewer.viewer.equals(userObjectId)
-        );
-  
-        if (alreadyViewed) {
-          res.status(HTTP_STATUS.OK).json({
-            success: true,
-            message: "View already recorded",
-            data: {
-              reelId,
-              viewersCount: reel.viewers.length,
-            },
-          });
-          return;
-        }
-  
-        reel.viewers = reel.viewers.filter(
-          (viewers, index, self) =>
-            index ===
-            self.findIndex(
-              (r) => r.toString() === viewers.toString()
-            )
-        );
-  
-        reel.viewers.push({viewer: userObjectId, viewedAt: new Date()});
-        await reel.save();
-        await reel.populate("viewers", "username avatar name");
-  
+  }
+
+  static async setReelViewers(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user?.userId;
+      const { reelId } = req.params;
+
+      if (!userId) {
+        res.redirect(`${process.env.FRONTEND_URL}/login`);
+        return;
+      }
+
+      if (!reelId || !mongoose.Types.ObjectId.isValid(reelId)) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          error: "Valid reel ID is required",
+        });
+        return;
+      }
+
+      const reel = await Reels.findById(reelId);
+      if (!reel) {
+        res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: "reel not found",
+        });
+        return;
+      }
+
+      const userObjectId = new mongoose.Types.ObjectId(userId);
+      const alreadyViewed = reel.viewers.some((viewer) =>
+        viewer.viewer.equals(userObjectId)
+      );
+
+      if (alreadyViewed) {
         res.status(HTTP_STATUS.OK).json({
           success: true,
+          message: "View already recorded",
           data: {
             reelId,
-            viewers: reel.viewers,
             viewersCount: reel.viewers.length,
           },
-          message: "View recorded successfully",
         });
-      } catch (error: any) {
-        console.error("Error setting story viewer:", error);
-       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
-          success: false,
-          error: "Server Error",
-          message: "Failed to record view",
-        });
+        return;
       }
+
+      reel.viewers = reel.viewers.filter(
+        (viewers, index, self) =>
+          index === self.findIndex((r) => r.toString() === viewers.toString())
+      );
+
+      reel.viewers.push({ viewer: userObjectId, viewedAt: new Date() });
+      await reel.save();
+      await reel.populate("viewers", "username avatar name");
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: {
+          reelId,
+          viewers: reel.viewers,
+          viewersCount: reel.viewers.length,
+        },
+        message: "View recorded successfully",
+      });
+    } catch (error: any) {
+      console.error("Error setting story viewer:", error);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: "Server Error",
+        message: "Failed to record view",
+      });
     }
-  
+  }
 }

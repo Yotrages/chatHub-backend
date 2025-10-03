@@ -183,14 +183,14 @@ export const login = async (
     await user.save();
 
     const response = await User.findById(user._id)
-      .select("-password")
+      .select("-password -provider -providerId")
       .populate(
         "followers",
-        "username name email bio followingCount followersCount avatar"
+        "-password -provider -providerId"
       )
       .populate(
         "following",
-        "username name email bio followingCount followersCount avatar"
+        "-password -provider -providerId"
       );
 
     const token = jwt.sign(
@@ -313,9 +313,9 @@ export const getUsers = async (req: Request, res: Response) => {
   const userId = req.user?.userId;
   try {
     const users = await User.find().select(
-      "username avatar name bio follower following email isPrivate"
+      "username avatar bio follower following email isPrivate"
     );
-    const otherUsers = users.filter((user) => user._id !== userId);
+    const otherUsers = users.filter((user) => user._id.toString() !== userId);
 
     res.status(HTTP_STATUS.OK).json(otherUsers);
   } catch (error: any) {
@@ -335,8 +335,7 @@ export const searchAll = async (req: Request, res: Response) => {
     });
     const user = await User.find({
       username: { $regex: query, $options: "i" },
-      name: { $regex: query, $options: "i" },
-    }).select("username name avatar followers following bio email postsCount");
+    }).select("username avatar followers following bio email postsCount");
     const allSearchResult = [...post, ...user];
     res.status(HTTP_STATUS.OK).json({
       allSearchResult,
@@ -354,10 +353,10 @@ export const getSingleUser = async (req: Request, res: Response) => {
   const { id } = req.params;
   try {
     const user = await User.findOne({ _id: id })
-      .select("-password")
+      .select("-password -provider -providerId")
       .populate(
         "followers",
-        "username name avatar email bio followers following postsCount"
+        "username avatar email bio followers following postsCount"
       );
     if (!user) {
       res.status(HTTP_STATUS.NOT_FOUND).json({ message: "User not found" });
@@ -379,7 +378,7 @@ export const getUserPosts = async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 20;
     const skip = (page - 1) * limit;
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "Unauthorized" });
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
       return;
     }
 
@@ -390,8 +389,8 @@ export const getUserPosts = async (req: Request, res: Response) => {
     }
 
     const posts = await Post.find({ authorId: userId, isDeleted: false })
-      .populate("authorId", "username name avatar")
-      .populate("reactions.userId", "username name avatar")
+      .populate("authorId", "username avatar")
+      .populate("reactions.userId", "username avatar")
       .sort({ createdAt: -1 })
       .skip(skip);
 
@@ -427,7 +426,7 @@ export const getUserReels = async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 20;
     const skip = (page - 1) * limit;
     if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "Unauthorized" });
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
       return;
     }
 
@@ -439,7 +438,7 @@ export const getUserReels = async (req: Request, res: Response) => {
 
     const reels = await Reels.find({ authorId: userId, isDeleted: false })
       .populate("authorId", "username avatar")
-      .populate("reactions.userId", "username name avatar")
+      .populate("reactions.userId", "username avatar")
       .sort({ createdAt: -1 })
       .skip(skip);
 
@@ -475,7 +474,7 @@ const getMostFollowedUsers = async (req: Request, res: Response) => {
       res.status(403).json({ error: "User not authorized " });
     }
     const mostFollowedUser = await User.find().select(
-      "name username avatar following followers bio"
+      "username avatar following followers bio"
     );
 
     if (mostFollowedUser.length === 0) {
@@ -517,7 +516,7 @@ export const getLikedPosts = async (req: Request, res: Response) => {
       isDeleted: false,
     })
       .populate("authorId", "username avatar")
-      .populate("reactions.userId", "username name avatar")
+      .populate("reactions.userId", "username avatar")
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit);
@@ -570,7 +569,7 @@ export const getSavedPosts = async (req: Request, res: Response) => {
       isDeleted: false,
     })
       .populate("authorId", "username avatar")
-      .populate("reactions.userId", "username name avatar")
+      .populate("reactions.userId", "username avatar")
       .lean(); 
 
     const enrichedPosts = posts.map((post) => ({

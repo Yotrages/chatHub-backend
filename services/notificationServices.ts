@@ -38,7 +38,7 @@ export class NotificationService {
       const skip = (page - 1) * limit;
       
       const notifications = await Notification.find({ recipientId: userId })
-        .populate('senderId', 'username name avatar')
+        .populate('senderId', 'username avatar')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);

@@ -51,7 +51,8 @@ export class SearchController {
   }
 
   private static getSortOption(
-    sortBy?: string
+    sortBy?: string,
+    useTextSearch: boolean = false
   ): Record<string, SortOrder | { $meta: string }> {
     switch (sortBy) {
       case "recent":
@@ -60,7 +61,10 @@ export class SearchController {
         return { reactions: -1, createdAt: -1 };
       case "relevant":
       default:
-        return { score: { $meta: "textScore" }, createdAt: -1 };
+        if (useTextSearch) {
+          return { score: { $meta: "textScore" }, createdAt: -1 };
+        }
+        return { createdAt: -1 };
     }
   }
 
@@ -77,33 +81,50 @@ export class SearchController {
     try {
       const trimmedQuery = query.trim();
       const { page, limit, skip } = SearchController.getPaginationOptions(req);
-      const sortOption = SearchController.getSortOption(sortBy as string);
+      const userId = req.user?.userId;
 
-      await SearchController.trackSearch(trimmedQuery);
+      const useTextSearch = sortBy === "relevant";
+      const sortOption = SearchController.getSortOption(
+        sortBy as string,
+        useTextSearch
+      );
 
-      const searchRegex = { $regex: trimmedQuery, $options: "i" };
+      if (userId) {
+        await SearchController.trackSearch(trimmedQuery, userId);
+      }
+      let searchCriteria;
 
-      const searchCriteria = {
-        posts: {
-          $or: [{ content: searchRegex }, { "authorId.username": searchRegex }],
-        },
-        reels: {
-          $or: [{ title: searchRegex }, { "authorId.username": searchRegex }],
-        },
-        users: {
-          $or: [
-            { username: searchRegex },
-            { name: searchRegex },
-            { bio: searchRegex },
-            { email: searchRegex },
-            { location: searchRegex },
-            { website: searchRegex },
-          ],
-        },
-        stories: {
-          $or: [{ text: searchRegex }, { "authorId.username": searchRegex }],
-        },
-      };
+      if (useTextSearch) {
+        searchCriteria = {
+          posts: { $text: { $search: trimmedQuery } },
+          reels: { $text: { $search: trimmedQuery } },
+          users: { $text: { $search: trimmedQuery } },
+          stories: { $text: { $search: trimmedQuery } },
+        };
+      } else {
+        const searchRegex = { $regex: trimmedQuery, $options: "i" };
+        searchCriteria = {
+          posts: {
+            $or: [
+              { content: searchRegex },
+              { "authorId.username": searchRegex },
+            ],
+          },
+          reels: {
+            $or: [{ title: searchRegex }, { "authorId.username": searchRegex }],
+          },
+          users: {
+            $or: [{ username: searchRegex }, { bio: searchRegex }],
+          },
+          stories: {
+            $or: [{ text: searchRegex }, { "authorId.username": searchRegex }],
+          },
+        };
+      }
+
+      const textScoreProjection = useTextSearch
+        ? { score: { $meta: "textScore" } }
+        : {};
 
       let results = { posts: [], reels: [], users: [], stories: [] };
       let pagination = {
@@ -145,9 +166,9 @@ export class SearchController {
         const overviewLimit = Math.min(limit, 10);
 
         const [posts, postsTotal] = await Promise.all([
-          Post.find(searchCriteria.posts)
+          Post.find(searchCriteria.posts, textScoreProjection)
             .populate("authorId", "username avatar isVerified")
-            .populate("reactions.userId", "username name avatar")
+            .populate("reactions.userId", "username avatar")
             .sort(sortOption)
             .limit(overviewLimit)
             .lean(),
@@ -155,9 +176,9 @@ export class SearchController {
         ]);
 
         const [reels, reelsTotal] = await Promise.all([
-          Reels.find(searchCriteria.reels)
-            .populate("authorId", "username name avatar isVerified")
-            .populate("reactions.userId", "username name avatar")
+          Reels.find(searchCriteria.reels, textScoreProjection)
+            .populate("authorId", "username avatar isVerified")
+            .populate("reactions.userId", "username avatar")
             .sort(sortOption)
             .limit(overviewLimit)
             .lean(),
@@ -165,11 +186,17 @@ export class SearchController {
         ]);
 
         const [users, usersTotal] = await Promise.all([
-          User.find(searchCriteria.users)
-            .select("-password -provider -providerId")
+          User.find(searchCriteria.users, {
+            ...textScoreProjection,
+            password: 0,
+            provider: 0,
+            providerId: 0,
+          })
             .sort(
               sortBy === "popular"
                 ? { followersCount: -1 as const }
+                : useTextSearch
+                ? sortOption
                 : { createdAt: -1 as const }
             )
             .limit(overviewLimit)
@@ -178,8 +205,8 @@ export class SearchController {
         ]);
 
         const [stories, storiesTotal] = await Promise.all([
-          Stories.find(searchCriteria.stories)
-            .populate("authorId", "username name avatar isVerified")
+          Stories.find(searchCriteria.stories, textScoreProjection)
+            .populate("authorId", "username avatar isVerified")
             .sort(sortOption)
             .limit(overviewLimit)
             .lean(),
@@ -213,9 +240,9 @@ export class SearchController {
         switch (type) {
           case "posts":
             const [posts, postsTotal] = await Promise.all([
-              Post.find(searchCriteria.posts)
+              Post.find(searchCriteria.posts, textScoreProjection)
                 .populate("authorId", "username avatar isVerified")
-                .populate("reactions.userId", "username name avatar")
+                .populate("reactions.userId", "username avatar")
                 .sort(sortOption)
                 .skip(skip)
                 .limit(limit)
@@ -232,9 +259,9 @@ export class SearchController {
 
           case "reels":
             const [reels, reelsTotal] = await Promise.all([
-              Reels.find(searchCriteria.reels)
-                .populate("authorId", "username name avatar isVerified")
-                .populate("reactions.userId", "username name avatar")
+              Reels.find(searchCriteria.reels, textScoreProjection)
+                .populate("authorId", "username avatar isVerified")
+                .populate("reactions.userId", "username avatar")
                 .sort(sortOption)
                 .skip(skip)
                 .limit(limit)
@@ -253,11 +280,17 @@ export class SearchController {
             const userSort =
               sortBy === "popular"
                 ? { followersCount: -1 as const, createdAt: -1 as const }
+                : useTextSearch
+                ? sortOption
                 : { createdAt: -1 as const };
 
             const [users, usersTotal] = await Promise.all([
-              User.find(searchCriteria.users)
-                .select("-password -provider -providerId")
+              User.find(searchCriteria.users, {
+                ...textScoreProjection,
+                password: 0,
+                provider: 0,
+                providerId: 0,
+              })
                 .sort(userSort)
                 .skip(skip)
                 .limit(limit)
@@ -274,8 +307,8 @@ export class SearchController {
 
           case "stories":
             const [stories, storiesTotal] = await Promise.all([
-              Stories.find(searchCriteria.stories)
-                .populate("authorId", "username name avatar isVerified")
+              Stories.find(searchCriteria.stories, textScoreProjection)
+                .populate("authorId", "username avatar isVerified")
                 .sort(sortOption)
                 .skip(skip)
                 .limit(limit)
@@ -323,7 +356,7 @@ export class SearchController {
     }
   }
 
-  static async getSuggestions(req: Request, res: Response) {
+   static async getSuggestions(req: Request, res: Response) {
     const { query } = req.query;
 
     if (!query || typeof query !== "string" || query.trim().length < 2) {
@@ -336,11 +369,12 @@ export class SearchController {
     try {
       const trimmedQuery = query.trim();
       const searchRegex = { $regex: `^${trimmedQuery}`, $options: "i" };
+      const userId = req.user?.userId;
 
       const userSuggestions = await User.find({
-        $or: [{ username: searchRegex }, { name: searchRegex }],
+        $or: [{ username: searchRegex }, { bio: searchRegex }],
       })
-        .select("username name avatar isVerified")
+        .select("username avatar isVerified")
         .limit(5)
         .lean();
 
@@ -364,20 +398,26 @@ export class SearchController {
         }
       });
 
-      const recentSearches = await SearchHistory.find({
-        query: { $regex: trimmedQuery, $options: "i" },
-      })
-        .sort({ count: -1, lastSearched: -1 })
-        .limit(5)
-        .select("query")
-        .lean();
+      let recentSearches: string[] = [];
+      if (userId) {
+        const userRecentSearches = await SearchHistory.find({
+          userId,
+          query: { $regex: trimmedQuery, $options: "i" },
+        })
+          .sort({ lastSearched: -1 })
+          .limit(5)
+          .select("query")
+          .lean();
+        
+        recentSearches = userRecentSearches.map((s) => s.query);
+      }
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
         suggestions: {
           users: userSuggestions,
           hashtags: Array.from(hashtags).slice(0, 5),
-          recent: recentSearches.map((s) => s.query),
+          recent: recentSearches,
         },
       });
     } catch (err: any) {
@@ -388,6 +428,7 @@ export class SearchController {
     }
   }
 
+
   static async getTrending(req: Request, res: Response) {
     try {
       const { limit = 10 } = req.query;
@@ -396,13 +437,36 @@ export class SearchController {
       const weekAgo = new Date();
       weekAgo.setDate(weekAgo.getDate() - 7);
 
-      const trendingSearches = await SearchHistory.find({
-        lastSearched: { $gte: weekAgo },
-      })
-        .sort({ count: -1 })
-        .limit(limitNum)
-        .select("query count lastSearched")
-        .lean();
+      const trendingSearches = await SearchHistory.aggregate([
+        {
+          $match: {
+            lastSearched: { $gte: weekAgo },
+          },
+        },
+        {
+          $group: {
+            _id: "$query",
+            totalCount: { $sum: "$count" },
+            userCount: { $sum: 1 },
+            lastSearched: { $max: "$lastSearched" },
+          },
+        },
+        {
+          $sort: { totalCount: -1 },
+        },
+        {
+          $limit: limitNum,
+        },
+        {
+          $project: {
+            query: "$_id",
+            count: "$totalCount",
+            users: "$userCount",
+            lastSearched: 1,
+            _id: 0,
+          },
+        },
+      ]);
 
       const recentPosts = await Post.find({
         createdAt: { $gte: weekAgo },
@@ -442,14 +506,28 @@ export class SearchController {
     }
   }
 
-  static async trackSearch(query: string) {
+  static async trackSearch(query: string, userId: string) {
     try {
+      if (!userId) {
+        console.warn("Cannot track search without userId");
+        return;
+      }
+
       const existing = await SearchHistory.findOneAndUpdate(
-        { query: query.toLowerCase() },
-        { $inc: { count: 1 }, $set: { lastSearched: new Date() } },
+        {
+          userId,
+          query: query.toLowerCase(),
+        },
+        {
+          $inc: { count: 1 },
+          $set: { lastSearched: new Date() },
+        },
         { upsert: true, new: true }
       );
-      console.log(`Tracked search: ${query}, Count: ${existing.count}`);
+
+      console.log(
+        `Tracked search for user ${userId}: ${query}, Count: ${existing.count}`
+      );
     } catch (err) {
       console.error("Error tracking search:", err);
     }
@@ -459,8 +537,16 @@ export class SearchController {
     try {
       const { limit = 10 } = req.query;
       const limitNum = Math.min(50, Math.max(1, parseInt(limit as string)));
+      const userId = req.user?.userId;
 
-      const frequentSearches = await SearchHistory.find()
+      if (!userId) {
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          error: "User must be authenticated",
+        });
+        return;
+      }
+
+      const frequentSearches = await SearchHistory.find({ userId })
         .sort({ count: -1, lastSearched: -1 })
         .limit(limitNum)
         .select("query count lastSearched");
@@ -477,10 +563,19 @@ export class SearchController {
     }
   }
 
+
   static async getSearchStats(req: Request, res: Response) {
     try {
       const { days = 30 } = req.query;
       const daysNum = Math.min(365, Math.max(1, parseInt(days as string)));
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          error: "User must be authenticated",
+        });
+        return;
+      }
 
       const dateFrom = new Date();
       dateFrom.setDate(dateFrom.getDate() - daysNum);
@@ -488,6 +583,7 @@ export class SearchController {
       const stats = await SearchHistory.aggregate([
         {
           $match: {
+            userId: userId,
             lastSearched: { $gte: dateFrom },
           },
         },
@@ -509,6 +605,7 @@ export class SearchController {
       ]);
 
       const topQueries = await SearchHistory.find({
+        userId,
         lastSearched: { $gte: dateFrom },
       })
         .sort({ count: -1 })
@@ -531,20 +628,19 @@ export class SearchController {
     }
   }
 
+
   static async clearSearchHistory(req: Request, res: Response) {
     try {
-      const { userId } = req.body;
+      const userId = req.user?.userId;
 
       if (!userId) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json({
-          error: "User ID is required",
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          error: "User must be authenticated",
         });
         return;
       }
 
-      const result = await SearchHistory.deleteMany({
-        count: { $lt: 5 },
-      });
+      const result = await SearchHistory.deleteMany({ userId });
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
@@ -558,6 +654,44 @@ export class SearchController {
       });
     }
   }
+
+  static async deleteSearchEntry(req: Request, res: Response) {
+    try {
+      const { searchId } = req.params;
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          error: "User must be authenticated",
+        });
+        return;
+      }
+
+      const result = await SearchHistory.findOneAndDelete({
+        _id: searchId,
+        userId, 
+      });
+
+      if (!result) {
+        res.status(HTTP_STATUS.NOT_FOUND).json({
+          error: "Search entry not found or does not belong to user",
+        });
+        return;
+      }
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: "Search entry deleted successfully",
+      });
+    } catch (err) {
+      console.error("Error deleting search entry:", err);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        error: "Failed to delete search entry",
+      });
+    }
+  }
+
+
 }
 
 export default SearchController;

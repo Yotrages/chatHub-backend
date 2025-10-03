@@ -310,7 +310,6 @@ export const getVideoPostById = async (req, res) => {
     const videoExtensions = '\\.(mp4|avi|mov|wmv|flv|webm|mpeg)$';
 
     const pipeline: PipelineStage[] = [
-      // Stage 1: Match specific post
       {
         $match: {
           _id: new mongoose.Types.ObjectId(postId),

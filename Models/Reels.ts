@@ -116,6 +116,7 @@ commentSchema.index({ dynamicId: 1, parentCommentId: 1, createdAt: -1 });
 commentSchema.index({ authorId: 1 });
 
 reelsSchema.index({ authorId: 1, createdAt: -1 });
+reelsSchema.index({ title: 'text' });
 
 export const ReelComment = mongoose.model("ReelComment", commentSchema);
 export const Reels = mongoose.model("Reels", reelsSchema);

@@ -3,7 +3,6 @@ import mongoose, { Document, Schema } from 'mongoose';
 export interface IUserSettings extends Document {
   userId: mongoose.Types.ObjectId;
   
-  // Privacy Settings
   privacy: {
     profileVisibility: 'public' | 'friends' | 'private';
     allowMessagesFrom: 'everyone' | 'friends' | 'none';
@@ -13,7 +12,6 @@ export interface IUserSettings extends Document {
     showPhoneNumber: boolean;
   };
   
-  // Notification Settings
   notifications: {
     email: {
       newFollower: boolean;
@@ -42,7 +40,6 @@ export interface IUserSettings extends Document {
     };
   };
   
-  // Appearance Settings
   appearance: {
     theme: 'light' | 'dark' | 'auto';
     language: string;
@@ -51,7 +48,6 @@ export interface IUserSettings extends Document {
     accentColor: string;
   };
   
-  // Security Settings
   security: {
     twoFactorAuth: boolean;
     loginAlerts: boolean;
@@ -65,7 +61,6 @@ export interface IUserSettings extends Document {
     }[];
   };
   
-  // Content Settings
   content: {
     autoPlayVideos: boolean;
     showSensitiveContent: boolean;
@@ -74,7 +69,6 @@ export interface IUserSettings extends Document {
     blockedPosts: mongoose.Types.ObjectId[]
   };
   
-  // Account Settings
   account: {
     isDeactivated: boolean;
     deactivatedAt?: Date;

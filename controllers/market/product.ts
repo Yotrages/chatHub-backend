@@ -40,11 +40,9 @@ export class ProductController {
       const images = req.files as Express.Multer.File[];
       const userId = req.user.userId;
       if (!userId) {
-        res
-          .status(HTTP_STATUS.UNAUTHORIZED)
-          .json({ error: ERROR_MESSAGES.UNAUTHORIZED });
-        return;
-      }
+      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      return;
+    }
       const userSettings = await UserSettings.findOne({ userId });
       if (userSettings?.account.isDeactivated) {
         res
