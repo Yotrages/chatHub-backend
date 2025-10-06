@@ -205,7 +205,10 @@ export class ReelsController {
       const file = req.file as Express.Multer.File;
 
       if (!userId) {
-        res.redirect(`${process.env.FRONTEND_URL}/login`);
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: "Only authenticated users can Reels reels",
+        });
         return;
       }
 
@@ -374,7 +377,9 @@ export class ReelsController {
       const userId = req.user?.userId;
 
       if (!userId) {
-        res.redirect(`${process.env.FRONTEND_URL}/login`);
+        res
+          .status(HTTP_STATUS.UNAUTHORIZED)
+          .json({ error: "User not authenticated" });
         return;
       }
 
@@ -466,7 +471,9 @@ export class ReelsController {
       const userId = req.user?.userId;
 
       if (!userId) {
-        res.redirect(`${process.env.FRONTEND_URL}/login`);
+        res
+          .status(HTTP_STATUS.UNAUTHORIZED)
+          .json({ error: "User not authenticated" });
         return;
       }
 
@@ -730,7 +737,9 @@ export class ReelsController {
 
     try {
       if (!authorId) {
-        res.redirect(`${process.env.FRONTEND_URL}/login`);
+        res
+          .status(HTTP_STATUS.UNAUTHORIZED)
+          .json({ error: "User not authenticated" });
         return;
       }
 
@@ -777,8 +786,8 @@ export class ReelsController {
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`);
-      return;
+      res.status(HTTP_STATUS.UNAUTHORIZED);
+      throw new Error("User not authenticated");
     }
 
     if (!reelId) {
@@ -839,7 +848,10 @@ export class ReelsController {
       const { reelId } = req.params;
 
       if (!userId) {
-        res.redirect(`${process.env.FRONTEND_URL}/login`);
+          res.status(HTTP_STATUS.UNAUTHORIZED).json({
+            success: false,
+            error: "User not authenticated",
+          });
         return;
       }
 
@@ -895,7 +907,10 @@ export class ReelsController {
       const { reelId } = req.params;
 
       if (!userId) {
-        res.redirect(`${process.env.FRONTEND_URL}/login`);
+          res.status(HTTP_STATUS.UNAUTHORIZED).json({
+            success: false,
+            error: "User not authenticated",
+          });
         return;
       }
 

@@ -378,7 +378,7 @@ export const getUserPosts = async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 20;
     const skip = (page - 1) * limit;
     if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "Unauthorized" });
       return;
     }
 
@@ -426,7 +426,7 @@ export const getUserReels = async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 20;
     const skip = (page - 1) * limit;
     if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: "Unauthorized" });
       return;
     }
 

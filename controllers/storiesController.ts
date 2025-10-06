@@ -65,7 +65,10 @@ export class storiesController {
       const file = req.file as Express.Multer.File;
 
       if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: "Only authenticated users can post stories",
+        });
       return;
     }
 
@@ -164,7 +167,10 @@ export class storiesController {
       const userId = req.user?.userId;
 
      if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+         res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: "User not authenticated",
+        });
       return;
     }
 
@@ -244,7 +250,10 @@ export class storiesController {
       const { storyId } = req.params;
 
       if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: "User not authenticated",
+        });
       return;
     }
 
@@ -296,7 +305,10 @@ export class storiesController {
       const { storyId } = req.params;
 
       if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: "User not authenticated",
+        });
       return;
     }
 
@@ -352,7 +364,10 @@ export class storiesController {
       const { storyId } = req.params;
 
       if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: "User not authenticated",
+        });
       return;
     }
       
@@ -427,7 +442,10 @@ export class storiesController {
       const userId = req.user?.userId;
 
      if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+        res.status(HTTP_STATUS.UNAUTHORIZED).json({
+          success: false,
+          error: "User not authenticated",
+        });
       return;
     }
 

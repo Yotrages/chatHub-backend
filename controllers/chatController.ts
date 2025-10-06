@@ -16,7 +16,9 @@ export const getConversations = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -57,7 +59,9 @@ export const createConversation = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -177,7 +181,9 @@ export const sendMessage = async (
     const senderId = req.user?.userId;
 
     if (!senderId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -295,7 +301,9 @@ export const updateConversation = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -351,7 +359,9 @@ export const deleteConversation = async (
     const userId = req.user?.userId;
 
    if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -410,7 +420,9 @@ export const markMessagesAsRead = async (
     const { conversationId } = req.params;
     const userId = req.user?.userId;
     if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
     await Message.updateMany(
@@ -449,7 +461,9 @@ export const editMessage = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -497,7 +511,9 @@ export const deleteMessage = async (
     const userId = req.user?.userId;
 
    if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -541,7 +557,9 @@ export const addReaction = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -629,7 +647,9 @@ export const removeReaction = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -667,7 +687,9 @@ export const fileUploader = async (req: AuthRequest, res: Response) => {
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -699,7 +721,9 @@ export const pinMessage = async (
     const userId = req.user?.userId;
 
    if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -762,7 +786,9 @@ export const unpinMessage = async (
     const userId = req.user?.userId;
 
    if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -818,7 +844,9 @@ export const forwardMessage = async (
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -911,7 +939,9 @@ export const starMessage = async (
     const userId = req.user?.userId;
 
    if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -952,7 +982,9 @@ export const unstarMessage = async (
     const userId = req.user?.userId;
 
    if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
 
@@ -985,7 +1017,9 @@ export const getMessageInfo = async (
     const { messageId } = req.params;
     const userId = req.user?.userId;
     if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
     const message = await Message.findById(messageId)
@@ -1025,8 +1059,8 @@ export const sharePostToChat = async (req: AuthRequest, res: Response) => {
   const { conversationId, content, postId } = req.body;
   const userId = req.user?.userId;
   if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
-      return;
+    res.status(HTTP_STATUS.UNAUTHORIZED);
+    throw new Error("User not authenticated");
     }
 
   if (!conversationId || !content || !postId) {

@@ -14,7 +14,10 @@ export const authenticateToken = async (
     const token = authHeader && authHeader.split(' ')[1]; 
 
    if (!token) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        success: false,
+        message: ERROR_MESSAGES.UNAUTHORIZED,
+      });
       return;
     }
 
@@ -37,7 +40,11 @@ export const authenticateToken = async (
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+      res.status(HTTP_STATUS.UNAUTHORIZED).json({
+        success: false,
+        message: ERROR_MESSAGES.TOKEN_EXPIRED,
+      });
+      return;
     }
 
     if (error instanceof jwt.JsonWebTokenError) {

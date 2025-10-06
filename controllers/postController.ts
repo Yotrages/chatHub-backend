@@ -207,7 +207,9 @@ export class PostsController {
       const userId = req.user?.userId;
 
       if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+        res
+          .status(HTTP_STATUS.UNAUTHORIZED)
+          .json({ error: "User not authenticated" });
       return;
     }
 
@@ -417,7 +419,9 @@ export class PostsController {
       const userId = req.user?.userId;
 
       if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+        res
+          .status(HTTP_STATUS.UNAUTHORIZED)
+          .json({ error: "User not authenticated" });
       return;
     }
 
@@ -519,7 +523,9 @@ export class PostsController {
       const userId = req.user?.userId;
 
       if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+        res
+          .status(HTTP_STATUS.UNAUTHORIZED)
+          .json({ error: "User not authenticated" });
       return;
     }
 
@@ -783,7 +789,9 @@ export class PostsController {
 
     try {
       if (!authorId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
+        res
+          .status(HTTP_STATUS.UNAUTHORIZED)
+          .json({ error: "User not authenticated" });
       return;
     }
 
@@ -836,8 +844,8 @@ export class PostsController {
     const userId = req.user?.userId;
 
     if (!userId) {
-      res.redirect(`${process.env.FRONTEND_URL}/login`)
-      return;
+      res.status(HTTP_STATUS.UNAUTHORIZED);
+      throw new Error("User not authenticated");
     }
 
     if (!postId) {
