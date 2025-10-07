@@ -7,8 +7,12 @@ import { Post } from "../Models/Post";
 import mongoose, { Types } from "mongoose";
 import { NotificationService } from "../services/notificationServices";
 import { UserSettings } from "../Models/userSettings";
-import { containsBlockedKeywords, isSensitiveContent } from "../utils/constant";
+import dotenv from 'dotenv'
+// import { containsBlockedKeywords, isSensitiveContent } from "../utils/constant";
 import { CallSession } from "../types";
+
+dotenv.config()
+
 declare module "socket.io" {
   interface Socket {
     userId: string;
@@ -68,6 +72,9 @@ export class SocketHandler {
   private setupSocketHandlers() {
     this.io.use(this.authenticateSocket);
     this.io.on("connection", async (socket) => {
+      console.log("Socket connection event fired");
+        console.log("Socket ID:", socket.id);
+        console.log("Socket userId:", socket.userId);
       console.log("User connected:", socket.userId, "Socket ID:", socket.id);
       if (!socket.userId) {
         console.error(
@@ -76,6 +83,8 @@ export class SocketHandler {
         socket.disconnect();
         return;
       }
+            console.log(`User ${socket.userId} connected successfully`);
+
       socket.emit("new_connection", {
         status: "connected",
         userId: socket.userId,
@@ -248,55 +257,56 @@ export class SocketHandler {
       }
     }, this.HEARTBEAT_INTERVAL);
   }
-  // Fixed authenticateSocket method in SocketHandler
 
-  private authenticateSocket = async (socket: any, next: any) => {
+    private authenticateSocket = async (socket: any, next: any) => {
     try {
+      console.log("🔐 Authenticating socket...");
+      console.log("Handshake auth:", socket.handshake.auth);
+      
       const token = socket.handshake.auth.token;
-
-      console.log("Authenticating socket connection...", {
-        hasToken: !!token,
-        socketId: socket.id,
-        userId: socket.handshake.auth.userId,
-      });
-
+      
       if (!token) {
-        console.error("No authentication token provided");
-        return next(new Error("No authentication token provided"));
+        console.error("❌ No token provided in handshake");
+        return next(new Error("Authentication error: No token provided"));
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+      console.log("🔍 Verifying JWT token...");
+      
+      // Verify JWT token
+      let decoded: any;
+      try {
+        decoded = jwt.verify(token, process.env.JWT_SECRET!);
+        console.log("✅ Token verified. User ID:", decoded.userId);
+      } catch (jwtError: any) {
+        console.error("❌ JWT verification failed:", jwtError.message);
+        return next(new Error(`Authentication error: ${jwtError.message}`));
+      }
+      
+      if (!decoded.userId) {
+        console.error("❌ Token does not contain userId");
+        return next(new Error("Authentication error: Invalid token payload"));
+      }
 
-      console.log("Token decoded:", {
-        userId: decoded.userId,
-        exp: decoded.exp,
-        iat: decoded.iat,
-      });
-
+      // Set userId on socket BEFORE checking database
       socket.userId = decoded.userId;
+      console.log("✅ Set socket.userId to:", socket.userId);
 
+      // Verify user exists in database
+      console.log("🔍 Checking if user exists in database...");
       const user = await User.findById(decoded.userId);
+      
       if (!user) {
-        console.error("User not found in database:", decoded.userId);
-        return next(new Error("User not found"));
+        console.error("❌ User not found in database:", decoded.userId);
+        return next(new Error("Authentication error: User not found"));
       }
 
-      console.log("Socket authenticated successfully for user:", user.username);
+      console.log("✅ User found:", user.username);
+      console.log("✅ Socket authentication successful for user:", socket.userId);
+      
       next();
     } catch (error: any) {
-      console.error("Socket authentication error:", {
-        message: error.message,
-        name: error.name,
-        stack: error.stack,
-      });
-
-      if (error.name === "JsonWebTokenError") {
-        next(new Error("Invalid token"));
-      } else if (error.name === "TokenExpiredError") {
-        next(new Error("Token expired"));
-      } else {
-        next(new Error("Authentication failed"));
-      }
+      console.error("❌ Socket authentication error:", error);
+      next(new Error(`Authentication failed: ${error.message}`));
     }
   };
 

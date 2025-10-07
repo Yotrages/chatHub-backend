@@ -1048,10 +1048,10 @@ export const getMessageInfo = async (
       })),
     });
   } catch (error: any) {
+    console.log(error)
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       error: "Server error",
-      details:
-        process.env.NODE_ENV === "development" ? error.message : undefined,
+      details: error.message,
     });
   }
 };
