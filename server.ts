@@ -36,7 +36,8 @@ const server = createServer(app);
 const io = new Server(server, {
   cors: {
     origin: [
-      process.env.FRONTEND_URL, "http://localhost:3000",
+      process.env.FRONTEND_URL,
+      "http://localhost:3000",
       "http://localhost:5173",
       "http://localhost:3001",
     ],
@@ -45,12 +46,38 @@ const io = new Server(server, {
   },
   allowEIO3: true,
   transports: ['websocket', 'polling'],
+  
+  pingTimeout: 60000, 
+  pingInterval: 25000, 
+  
+  upgradeTimeout: 30000, 
+  allowUpgrades: true,
+  
+  connectionStateRecovery: {
+    maxDisconnectionDuration: 2 * 60 * 1000, 
+    skipMiddlewares: true,
+  },
+  
+  perMessageDeflate: {
+    threshold: 1024, 
+  },
+});
+
+io.engine.on("connection_error", (err) => {
+  console.error('Socket.IO Engine Error:', {
+    code: err.code,
+    message: err.message,
+    context: err.context,
+  });
+});
+
+io.engine.on("initial_headers", (headers, request) => {
+  headers["X-Custom-Header"] = "socket-io";
 });
 
 app.set('io', io); 
 new SocketHandler(io);
 
-// Middleware to inject io into requests
 app.use((req, res, next) => {
   req.io = io; 
   next();
@@ -103,9 +130,29 @@ app.get('/health', (req, res) => {
     message: 'Server is running',
     timestamp: new Date().toISOString(),
     environment: config.NODE_ENV,
-    socketConnections: io.engine.clientsCount,
+    socket: {
+      connections: io.engine.clientsCount,
+      transport: 'websocket/polling',
+      status: 'operational',
+    },
   });
 });
+
+if (config.NODE_ENV !== 'production') {
+  app.get('/socket-status', (req, res) => {
+    const sockets = Array.from(io.sockets.sockets.values());
+    res.json({
+      totalConnections: io.engine.clientsCount,
+      connectedSockets: sockets.length,
+      sockets: sockets.map(s => ({
+        id: s.id,
+        connected: s.connected,
+        transport: s.conn?.transport?.name,
+        userId: (s as any).userId,
+      })),
+    });
+  });
+}
 
 // API routes
 app.use('/api/auth', authRoutes);
@@ -120,7 +167,6 @@ app.use('/api/settings', userSettings)
 app.use('/api', memoryThreads)
 app.use('/api/videos', videoRoutes)
 
-// Catch all for undefined routes
 app.use('*', (req, res) => {
   res.status(HTTP_STATUS.NOT_FOUND).json({
     success: false,
@@ -139,25 +185,32 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 });
 
 // Graceful shutdown handlers
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    console.log('Process terminated');
-  });
-});
+const shutdown = () => {
+  console.log('Shutting down gracefully...');
 
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
-  server.close(() => {
-    console.log('Process terminated');
+    io.sockets.sockets.forEach(socket => {
+    socket.disconnect(true);
   });
-});
+  
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
+  
+  setTimeout(() => {
+    console.error('Forcing shutdown');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 const PORT = config.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT} in ${config.NODE_ENV} mode`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔌 Socket.IO server ready`);
+  console.log(`Server running on port ${PORT} in ${config.NODE_ENV} mode`);
+  console.log(`Health check: http://localhost:${PORT}/health`);
+  console.log(`Socket.IO server ready`);
 });
 
 export default app;

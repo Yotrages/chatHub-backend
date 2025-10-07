@@ -12,6 +12,7 @@ import { CallSession } from "../types";
 declare module "socket.io" {
   interface Socket {
     userId: string;
+    tokenExpiry: any
   }
 }
 interface UserStatus {
@@ -32,6 +33,7 @@ export class SocketHandler {
     this.io = io;
     this.setupSocketHandlers();
     this.startHeartbeatCleanup();
+    this.monitorTokenExpiry();
   }
   private async sendCallMessage(conversationId: string, content: string, senderId: string, callStatus: string) {
     try {
@@ -213,17 +215,45 @@ export class SocketHandler {
         return next(new Error("No authentication token provided"));
       }
       const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any;
+      const expiresIn = decoded.exp - Math.floor(Date.now() / 1000);
+    if (expiresIn < 300) { 
+      console.warn(`Token expiring soon for user ${decoded.userId}`);
+    }
       socket.userId = decoded.userId;
       const user = await User.findById(decoded.userId);
       if (!user) {
         return next(new Error("User not found"));
       }
+      socket.tokenExpiry = decoded.exp;
       next();
     } catch (error) {
-      console.error("Socket authentication error:", error);
+      console.error("Socket authentication error:", error);    
+    if (error.name === "TokenExpiredError") {
+      return next(new Error("TOKEN_EXPIRED"));
+    }
+    if (error.name === "JsonWebTokenError") {
+      return next(new Error("INVALID_TOKEN"));
+    }
       next(new Error("Authentication failed"));
     }
   };
+
+  private monitorTokenExpiry() {
+  setInterval(() => {
+    const now = Math.floor(Date.now() / 1000);
+    
+    this.io.sockets.sockets.forEach((socket: any) => {
+      if (socket.tokenExpiry && socket.tokenExpiry < now) {
+        console.log(`Disconnecting user ${socket.userId} - token expired`);
+        socket.emit("token_expired", { 
+          message: "Your session has expired. Please login again." 
+        });
+        socket.disconnect(true);
+      }
+    });
+  }, 60000); 
+}
+
   private async joinUserConversations(socket: any) {
     try {
       const conversations = await Conversation.find({

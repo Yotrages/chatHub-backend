@@ -680,10 +680,7 @@ export const validateToken = async (req: Request, res: Response) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as {
-      userId: string;
-      iat: number;
-    };
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
     const user = await User.findById(decoded.userId);
     if (!user) {
       res.status(HTTP_STATUS.NOT_FOUND).json({ error: "User not found" });
