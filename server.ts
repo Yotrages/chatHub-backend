@@ -31,6 +31,9 @@ connectDB();
 configurePassport();
 
 const app = express();
+if (config.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
 const server = createServer(app);
 
 const io = new Server(server, {
@@ -61,6 +64,8 @@ const io = new Server(server, {
   perMessageDeflate: {
     threshold: 1024, 
   },
+
+  path: '/socket.io/',
 });
 
 io.engine.on("connection_error", (err) => {
