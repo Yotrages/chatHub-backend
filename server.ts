@@ -50,7 +50,7 @@ const io = new Server(server, {
   allowEIO3: true,
   transports: ['websocket', 'polling'],
   
-  pingTimeout: 60000, 
+  pingTimeout: 120000, 
   pingInterval: 25000, 
   
   upgradeTimeout: 30000, 
@@ -60,9 +60,18 @@ const io = new Server(server, {
     maxDisconnectionDuration: 2 * 60 * 1000, 
     skipMiddlewares: true,
   },
+  maxHttpBufferSize: 1e8,
   
   perMessageDeflate: {
-    threshold: 1024, 
+    threshold: 1024,
+    zlibDeflateOptions: {
+      chunkSize: 8 * 1024,
+    },
+    clientNoContextTakeover: true,
+    serverNoContextTakeover: true,
+  },
+  httpCompression: {
+    threshold: 1024,
   },
 
   path: '/socket.io/',

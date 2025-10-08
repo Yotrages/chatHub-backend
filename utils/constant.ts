@@ -10,7 +10,7 @@ export const config = {
   JWT_SECRET: process.env.JWT_SECRET || 'fallback-secret-key',
   JWT_EXPIRE: process.env.JWT_EXPIRE || '7d',
   MONGODB_URI: process.env.MONGO_URI || 'mongodb://localhost:27017/chatapp',
-  CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:3000' || "http://localhost:3001" || "http://localhost:5173",
+  CORS_ORIGIN: process.env.FRONTEND_URL || 'http://localhost:3000' || "http://localhost:3001" || "http://localhost:5173",
   UPLOAD_PATH: process.env.UPLOAD_PATH || './uploads',
   MAX_FILE_SIZE: parseInt(process.env.MAX_FILE_SIZE || '5242880'), // 5MB
 };
