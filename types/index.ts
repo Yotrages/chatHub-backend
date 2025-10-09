@@ -312,7 +312,7 @@ export interface CallSession {
   caller: string;
   callee: string;
   isVideo: boolean;
-  status: 'calling' | 'ringing' | 'connected' | 'ended';
+  status: 'calling' | 'ringing' | 'connected' | 'ended' | 'accepted';
   startTime?: Date;
   endTime?: Date;
 }
