@@ -1040,8 +1040,6 @@ export const getMessageInfo = async (
       messageId: message._id,
       content: message.content,
       sender: message.senderId,
-      createdAt: message.timestamp["createdAt"],
-      updatedAt: message.timestamp["updatedAt"],
       readBy: message.readBy.map((rb) => ({
         userId: rb.userId,
         readAt: rb.readAt,

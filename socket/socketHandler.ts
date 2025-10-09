@@ -875,99 +875,92 @@ export class SocketHandler {
       console.error("Error updating user status:", error);
     }
   }
-  private handleOffer(socket: any, data: any) {
-    const { sdp, to, isVideo, callId } = data;
-    console.log(`📤 Processing offer:`, {
-      from: socket.userId,
-      to,
-      isVideo,
-      callId,
-      hasRecipient: this.onlineUsers.has(to),
-    });
+private handleOffer(socket: any, data: any) {
+  const { sdp, to, isVideo, callId } = data;
+  console.log(`📤 Processing offer:`, {
+    from: socket.userId,
+    to,
+    isVideo,
+    callId,
+    hasRecipient: this.onlineUsers.has(to)
+  });
 
-    if (!this.onlineUsers.has(to)) {
-      console.log(`❌ Recipient ${to} not found`);
-      socket.emit("call_error", { error: "User not available" });
-      return;
-    }
-
-    // CRITICAL FIX: Don't check for call session here - it should already exist from call_request
-    // Just verify the call exists and is in correct state
-    const callSession = this.activeCalls.get(callId);
-
-    if (!callSession) {
-      console.log(`❌ Call session not found for callId: ${callId}`);
-      socket.emit("call_error", { error: "Call session not found" });
-      return;
-    }
-
-    // Verify the offer is from the correct caller
-    if (callSession.caller !== socket.userId) {
-      console.log(
-        `❌ Unauthorized offer - expected from ${callSession.caller}, got ${socket.userId}`
-      );
-      socket.emit("call_error", { error: "Unauthorized" });
-      return;
-    }
-
-    const recipientSocketId = this.onlineUsers.get(to);
-    if (recipientSocketId) {
-      console.log(
-        `✅ Forwarding offer to ${to} at socket ${recipientSocketId}`
-      );
-      this.io.to(recipientSocketId).emit("offer", {
-        sdp,
-        from: socket.userId,
-        isVideo: callSession.isVideo,
-        callId: callSession.callId,
-      });
-    }
+  if (!this.onlineUsers.has(to)) {
+    console.log(`❌ Recipient ${to} not found`);
+    socket.emit("call_error", { error: "User not available" });
+    return;
   }
+
+  // FIXED: Create call session if it doesn't exist (for race condition)
+  let callSession = this.activeCalls.get(callId);
+  
+  if (!callSession) {
+    console.log(`⚠️ Call session not found, creating one for callId: ${callId}`);
+    callSession = {
+      callId: callId,
+      caller: socket.userId,
+      callee: to,
+      isVideo: isVideo,
+      status: "calling",
+    };
+    this.activeCalls.set(callId, callSession);
+  }
+
+  const recipientSocketId = this.onlineUsers.get(to);
+  if (recipientSocketId) {
+    console.log(`✅ Forwarding offer to ${to} at socket ${recipientSocketId}`);
+    this.io.to(recipientSocketId).emit("offer", {
+      sdp,
+      from: socket.userId,
+      isVideo: callSession.isVideo,
+      callId: callSession.callId,
+    });
+  }
+}
+
 
   private handleAnswer(socket: any, data: any) {
-    const { sdp, to, callId } = data;
-    console.log(`📤 Processing answer:`, {
-      from: socket.userId,
-      to,
-      callId,
-      hasRecipient: this.onlineUsers.has(to),
-    });
+  const { sdp, to, callId } = data;
+  console.log(`📤 Processing answer:`, {
+    from: socket.userId,
+    to,
+    callId,
+    hasRecipient: this.onlineUsers.has(to)
+  });
 
-    if (!this.onlineUsers.has(to)) {
-      console.log(`❌ Recipient ${to} not found`);
-      return;
-    }
+  if (!this.onlineUsers.has(to)) {
+    console.log(`❌ Recipient ${to} not found`);
+    return;
+  }
 
-    // CRITICAL FIX: Get call by callId
-    const callSession = this.activeCalls.get(callId);
-
-    if (callSession) {
-      // Update to connected only when answer is sent
-      callSession.status = "connected";
-      if (!callSession.startTime) {
-        callSession.startTime = new Date();
-        console.log(
-          `✅ Call ${callSession.callId} connected at ${callSession.startTime}`
-        );
-      }
-    } else {
-      console.log(
-        `⚠️ Call session not found for answer, but forwarding anyway`
+  const callSession = callId 
+    ? this.activeCalls.get(callId)
+    : Array.from(this.activeCalls.values()).find(
+        (call) =>
+          (call.caller === to && call.callee === socket.userId) ||
+          (call.caller === socket.userId && call.callee === to)
       );
-    }
 
-    const recipientSocketId = this.onlineUsers.get(to);
-    if (recipientSocketId) {
-      console.log(
-        `✅ Forwarding answer to ${to} at socket ${recipientSocketId}`
-      );
-      this.io.to(recipientSocketId).emit("answer", {
-        sdp,
-        from: socket.userId,
-        callId: callId,
-      });
+  if (callSession) {
+    // FIXED: Only set to connected when answer is received
+    callSession.status = "connected";
+    if (!callSession.startTime) {
+      callSession.startTime = new Date();
+      console.log(`✅ Call ${callSession.callId} connected at ${callSession.startTime}`);
     }
   }
+
+  const recipientSocketId = this.onlineUsers.get(to);
+  if (recipientSocketId) {
+    console.log(`✅ Forwarding answer to ${to} at socket ${recipientSocketId}`);
+    this.io.to(recipientSocketId).emit("answer", {
+      sdp,
+      from: socket.userId,
+      callId: callSession?.callId,
+    });
+  }
+}
+
 
   private handleIceCandidate(socket: any, data: any) {
     const { candidate, to, callId } = data;
@@ -1124,49 +1117,39 @@ export class SocketHandler {
   }
 
   private handleCallAccept(socket: any, data: any) {
-    const { to, callId } = data;
-    console.log(`✅ Processing call_accept:`, {
-      from: socket.userId,
-      to,
-      callId,
-    });
+  const { to, callId } = data; // FIXED: Get callId from data
+  console.log(`✅ Call accept from ${socket.userId} to ${to}, callId: ${callId}`);
 
-    // CRITICAL FIX: Find call session by callId
-    const callSession = this.activeCalls.get(callId);
-
-    if (!callSession) {
-      console.log(`❌ No call session found for callId: ${callId}`);
-      socket.emit("call_error", { error: "No active call found" });
-      return;
-    }
-
-    // Verify the accept is from the correct callee
-    if (callSession.callee !== socket.userId) {
-      console.log(
-        `❌ Unauthorized accept - expected from ${callSession.callee}, got ${socket.userId}`
+  // FIXED: Find by callId first, then by participants
+  let callSession = callId 
+    ? this.activeCalls.get(callId)
+    : Array.from(this.activeCalls.values()).find(
+        (call) => call.caller === to && call.callee === socket.userId
       );
-      socket.emit("call_error", { error: "Unauthorized" });
-      return;
-    }
 
-    // Update call status
-    callSession.status = "accepted"; // New intermediate state
-    console.log(`✅ Call ${callId} accepted by ${socket.userId}`);
-
-    // Notify the caller
-    const callerSocketId = this.onlineUsers.get(to);
-    if (callerSocketId) {
-      console.log(`📤 Notifying caller ${to} of call acceptance`);
-      this.io.to(callerSocketId).emit("call_accept", {
-        from: socket.userId,
-        timestamp: new Date().toISOString(),
-        callId: callSession.callId,
-      });
-    } else {
-      console.log(`❌ Caller ${to} not found online`);
-      socket.emit("call_error", { error: "Caller not available" });
-    }
+  if (!callSession) {
+    console.error(`❌ No active call found for callId: ${callId}`);
+    socket.emit("call_error", { error: "No active call found" });
+    return;
   }
+
+  // FIXED: Update status before emitting
+  callSession.status = "accepted"; // Use 'accepted' instead of 'connected'
+  console.log(`✅ Call ${callSession.callId} status updated to 'accepted'`);
+
+  // FIXED: Emit to caller that call was accepted
+  if (this.onlineUsers.has(to)) {
+    const callerSocketId = this.onlineUsers.get(to)!;
+    console.log(`📤 Emitting call_accept to caller ${to} at socket ${callerSocketId}`);
+    this.io.to(callerSocketId).emit("call_accept", {
+      from: socket.userId,
+      timestamp: new Date().toISOString(),
+      callId: callSession.callId,
+    });
+  } else {
+    console.error(`❌ Caller ${to} not online`);
+  }
+}
 
   private async handleCallDecline(socket: any, data: any) {
     const { to, callId } = data;
@@ -1281,49 +1264,49 @@ export class SocketHandler {
   }
 
   private async handleCallTimeout(socket: any, data: any) {
-    const { callId, to } = data;
-    console.log(`⏰ Processing call_timeout for callId ${callId}`);
+  const { callId, to } = data; // FIXED: Get 'to' from data
+  console.log(`⏰ Call timeout for callId ${callId}`);
 
-    const callSession = this.activeCalls.get(callId);
+  const callSession = this.activeCalls.get(callId);
+  
+  // FIXED: Only timeout if still in calling/ringing state
+  if (callSession && (callSession.status === "calling" || callSession.status === "ringing")) {
+    callSession.status = "ended";
+    callSession.endTime = new Date();
 
-    if (
-      callSession &&
-      (callSession.status === "calling" || callSession.status === "ringing")
-    ) {
-      callSession.status = "ended";
-      callSession.endTime = new Date();
-
-      // Send "missed call" message (timeout, not declined)
-      const conversation = await Conversation.findOne({
-        participants: {
-          $all: [callSession.caller, callSession.callee],
-          $size: 2,
-        },
-        type: "direct",
-      });
-
-      if (conversation) {
-        await this.sendCallMessage(
-          conversation._id.toString(),
-          `Missed ${callSession.isVideo ? "video" : "voice"} call`,
-          callSession.caller,
-          "missed"
-        );
-      }
-
-      // Notify callee about timeout
-      if (to && this.onlineUsers.has(to)) {
-        this.io.to(this.onlineUsers.get(to)!).emit("call_timeout", {
-          callId,
-          timestamp: new Date().toISOString(),
-        });
-      }
-
-      setTimeout(() => {
-        this.activeCalls.delete(callId);
-      }, 5000);
+    const conversation = await Conversation.findOne({
+      participants: {
+        $all: [callSession.caller, callSession.callee],
+        $size: 2,
+      },
+      type: "direct",
+    });
+    
+    if (conversation) {
+      // FIXED: Send "Missed call" message, not "call declined"
+      await this.sendCallMessage(
+        conversation._id.toString(),
+        `Missed ${callSession.isVideo ? "video" : "voice"} call`,
+        callSession.caller,
+        "missed" // FIXED: Use "missed" status
+      );
     }
+
+    // Notify callee
+    if (this.onlineUsers.has(callSession.callee)) {
+      this.io.to(this.onlineUsers.get(callSession.callee)!).emit("call_timeout", {
+        callId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
+    setTimeout(() => {
+      this.activeCalls.delete(callId);
+    }, 5000);
+  } else {
+    console.log(`⚠️ Call ${callId} already in state: ${callSession?.status}`);
   }
+}
 
   private async handleCallFailed(socket: any, data: any) {
     const { callId } = data;
