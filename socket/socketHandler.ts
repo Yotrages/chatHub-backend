@@ -1116,11 +1116,10 @@ private handleOffer(socket: any, data: any) {
     }
   }
 
-  private handleCallAccept(socket: any, data: any) {
-  const { to, callId } = data; // FIXED: Get callId from data
+private handleCallAccept(socket: any, data: any) {
+  const { to, callId } = data;
   console.log(`✅ Call accept from ${socket.userId} to ${to}, callId: ${callId}`);
 
-  // FIXED: Find by callId first, then by participants
   let callSession = callId 
     ? this.activeCalls.get(callId)
     : Array.from(this.activeCalls.values()).find(
@@ -1133,11 +1132,12 @@ private handleOffer(socket: any, data: any) {
     return;
   }
 
-  // FIXED: Update status before emitting
-  callSession.status = "accepted"; // Use 'accepted' instead of 'connected'
+  // Update status
+  callSession.status = "accepted";
   console.log(`✅ Call ${callSession.callId} status updated to 'accepted'`);
 
-  // FIXED: Emit to caller that call was accepted
+  // FIXED: Just notify the caller that call was accepted
+  // Don't wait for answer creation - that happens on callee side
   if (this.onlineUsers.has(to)) {
     const callerSocketId = this.onlineUsers.get(to)!;
     console.log(`📤 Emitting call_accept to caller ${to} at socket ${callerSocketId}`);
