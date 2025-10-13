@@ -987,110 +987,148 @@ private handleOffer(socket: any, data: any) {
     }
   }
 
-  private handleCallRequest(socket: any, data: any) {
-    const { to, isVideo, callId } = data;
-    console.log(`📞 Processing call request:`, {
+private handleCallRequest(socket: any, data: any) {
+  const { to, isVideo, callId } = data;
+  console.log(`📞 Processing call request:`, {
+    from: socket.userId,
+    to,
+    isVideo,
+    callId,
+    isOnline: this.onlineUsers.has(to),
+  });
+
+  // Check for existing active calls
+  const existingCall = Array.from(this.activeCalls.values()).find(
+    (call) =>
+      ((call.caller === socket.userId && call.callee === to) ||
+        (call.caller === to && call.callee === socket.userId)) &&
+      call.status !== "ended"
+  );
+
+  if (existingCall) {
+    console.log(`❌ Call already in progress: ${existingCall.callId}`);
+    socket.emit("call_error", {
+      error: "Call already in progress",
+      callId: existingCall.callId,
+    });
+    return;
+  }
+
+  // Create call session REGARDLESS of online status
+  // This allows us to deliver the call if they come online
+  const callSession: CallSession = {
+    callId: callId,
+    caller: socket.userId,
+    callee: to,
+    isVideo,
+    status: "calling",
+  };
+
+  this.activeCalls.set(callSession.callId, callSession);
+  console.log(`✅ Call session created: ${callSession.callId}`);
+
+  // CRITICAL: Check if recipient is online NOW
+  const recipientSocketId = this.onlineUsers.get(to);
+  
+  if (recipientSocketId) {
+    // User is online, send call request immediately
+    console.log(`📤 User ${to} is online, emitting call_request to socket ${recipientSocketId}`);
+    this.io.to(recipientSocketId).emit("call_request", {
       from: socket.userId,
-      to,
       isVideo,
-      callId,
-      isOnline: this.onlineUsers.has(to),
-    });
-
-    // Check if recipient is online
-    if (!this.onlineUsers.has(to)) {
-      console.log(`❌ User ${to} is not online`);
-      socket.emit("call_error", {
-        error: "User not available",
-        reason: "offline",
-      });
-
-      this.sendMissedCallNotification(socket.userId, to, isVideo);
-      return;
-    }
-
-    // Check for existing active calls with these users
-    const existingCall = Array.from(this.activeCalls.values()).find(
-      (call) =>
-        ((call.caller === socket.userId && call.callee === to) ||
-          (call.caller === to && call.callee === socket.userId)) &&
-        call.status !== "ended"
-    );
-
-    if (existingCall) {
-      console.log(`❌ Call already in progress: ${existingCall.callId}`);
-      socket.emit("call_error", {
-        error: "Call already in progress",
-        callId: existingCall.callId,
-      });
-      return;
-    }
-
-    // Create call session with provided callId
-    const callSession: CallSession = {
-      callId: callId,
-      caller: socket.userId,
-      callee: to,
-      isVideo,
-      status: "calling",
-    };
-
-    this.activeCalls.set(callSession.callId, callSession);
-    console.log(`✅ Call session created and stored: ${callSession.callId}`);
-
-    // CRITICAL: Confirm to caller that session is created
-    socket.emit("call_session_created", {
-      callId: callSession.callId,
       timestamp: new Date().toISOString(),
+      callId: callSession.callId,
     });
+  } else {
+    // User is offline, inform caller but KEEP call session alive
+    console.log(`⚠️ User ${to} is currently offline, monitoring for reconnection...`);
+    socket.emit("call_waiting", {
+      message: "Calling...",
+      status: "offline",
+    });
+  }
 
-    // Emit call request to recipient
-    const recipientSocketId = this.onlineUsers.get(to);
-    if (recipientSocketId) {
-      console.log(`📤 Emitting call_request to socket ${recipientSocketId}`);
-      this.io.to(recipientSocketId).emit("call_request", {
+  // CRITICAL: Monitor for user coming online during the 45-second window
+  const checkInterval = setInterval(() => {
+    const call = this.activeCalls.get(callSession.callId);
+    
+    // Stop monitoring if call ended or answered
+    if (!call || call.status !== "calling") {
+      console.log(`⏹️ Stopping monitoring for call ${callSession.callId} - status: ${call?.status}`);
+      clearInterval(checkInterval);
+      return;
+    }
+
+    // Check if user came online
+    const currentRecipientSocket = this.onlineUsers.get(to);
+    if (currentRecipientSocket && currentRecipientSocket !== recipientSocketId) {
+      console.log(`✅ User ${to} came online! Sending call request to socket ${currentRecipientSocket}`);
+      
+      // Send call request to the newly online user
+      this.io.to(currentRecipientSocket).emit("call_request", {
         from: socket.userId,
         isVideo,
         timestamp: new Date().toISOString(),
         callId: callSession.callId,
       });
+      
+      // Update caller
+      socket.emit("call_waiting", {
+        message: "Ringing...",
+        status: "online",
+      });
+      
+      clearInterval(checkInterval);
     }
+  }, 1000); // Check every second
 
-    // Set timeout for unanswered call (45 seconds)
-    setTimeout(async () => {
-      const call = this.activeCalls.get(callSession.callId);
-      if (call && (call.status === "calling" || call.status === "ringing")) {
-        console.log(
-          `⏰ Call ${callSession.callId} timed out (status: ${call.status})`
-        );
-        call.status = "ended";
-        call.endTime = new Date();
+  // Set 45-second timeout
+  setTimeout(async () => {
+    clearInterval(checkInterval); // Stop monitoring
+    
+    const call = this.activeCalls.get(callSession.callId);
+    if (call && (call.status === "calling" || call.status === "ringing")) {
+      console.log(`⏰ Call ${callSession.callId} timed out after 45s`);
+      call.status = "ended";
+      call.endTime = new Date();
 
-        // Notify both parties
-        socket.emit("call_timeout", {
+      // Send timeout notification to both parties
+      socket.emit("call_timeout", {
+        callId: callSession.callId,
+        timestamp: new Date().toISOString(),
+      });
+
+      const currentRecipientSocket = this.onlineUsers.get(to);
+      if (currentRecipientSocket) {
+        this.io.to(currentRecipientSocket).emit("call_timeout", {
           callId: callSession.callId,
           timestamp: new Date().toISOString(),
         });
-
-        if (recipientSocketId) {
-          this.io.to(recipientSocketId).emit("call_timeout", {
-            callId: callSession.callId,
-            timestamp: new Date().toISOString(),
-          });
-        }
-
-        // Send missed call message (NOT declined)
-        await this.sendMissedCallNotification(
-          call.caller,
-          call.callee,
-          call.isVideo
-        );
-
-        // Cleanup
-        setTimeout(() => this.activeCalls.delete(callSession.callId), 5000);
       }
-    }, 45000);
-  }
+
+      // Send missed call message
+      const conversation = await Conversation.findOne({
+        participants: {
+          $all: [call.caller, call.callee],
+          $size: 2,
+        },
+        type: "direct",
+      });
+
+      if (conversation) {
+        await this.sendCallMessage(
+          conversation._id.toString(),
+          `Missed ${call.isVideo ? "video" : "voice"} call`,
+          call.caller,
+          "missed"
+        );
+      }
+
+      // Cleanup
+      setTimeout(() => this.activeCalls.delete(callSession.callId), 5000);
+    }
+  }, 45000);
+}
 
   private async sendMissedCallNotification(
     callerId: string,
