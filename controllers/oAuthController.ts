@@ -13,11 +13,12 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
   const redirectBase = process.env.FRONTEND_URL || "http://localhost:3000";
   let intent = "login";
   let successRedirect = "oauth-success";
-
+  let from;
   try {
     if (req.query.state) {
       const decoded = JSON.parse(Buffer.from(req.query.state as string, "base64").toString());
       intent = decoded.intent || "login";
+      from = decoded.from || undefined
       successRedirect = decoded.redirectUrl || "oauth-success";
       
       const timestamp = decoded.timestamp;
@@ -59,21 +60,12 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
         provider: provider,
       });
 
-      const token = generateToken({
-        userId: newUser._id,
-        email: newUser.email,
-      });
-
-      return res.redirect(
-        `${redirectBase}/${successRedirect}?token=${token}&type=register&id=${newUser._id}&username=${encodeURIComponent(
-          newUser.username || ""
-        )}&email=${encodeURIComponent(newUser.email)}&new=true`
-      );
+      return res.redirect(`${redirectBase}/login?success=${encodeURIComponent("Account created successfully! Please log in.")}&registered=true`);
 
     } else {
       if (!existingUser) {
         return res.redirect(
-          `${redirectBase}/login?error=${encodeURIComponent(
+          `${redirectBase}/register?error=${encodeURIComponent(
             "No account found with this email. Please register first."
           )}&suggest=register`
         );
@@ -93,9 +85,9 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
       });
 
       return res.redirect(
-        `${redirectBase}/${successRedirect}?token=${token}&type=login&id=${existingUser._id}&name=${encodeURIComponent(
+        `${redirectBase}/${successRedirect}?token=${token}&from=${from}&type=login&id=${existingUser._id}&name=${encodeURIComponent(
           existingUser.username || ""
-        )}&email=${encodeURIComponent(existingUser.email)}`
+        )}&email=${encodeURIComponent(existingUser.email)}&avatar=${encodeURIComponent(existingUser.avatar)}`
       );
     }
 
