@@ -35,7 +35,7 @@ router.get("/viewers/:storyId", authenticateToken, ReelsController.getReelViewer
 router.post("/viewers/:storyId", authenticateToken, ReelsController.setReelViewers);
 router.post("/:reelId/comment/:commentId/react", authenticateToken, ReelsController.addCommentReaction);
 router.post("/:reelId/comment", authenticateToken, ReelsController.createComment);
-router.post('/:reelId/save', ReelsController.saveReel)
+router.post('/:reelId/save', authenticateToken, ReelsController.saveReel)
 router.post('/:reelId/share', authenticateToken, ReelsController.trackReelShare);
 router.put("/:reelId/comment/:commentId", authenticateToken, ReelsController.updateComment);
 router.delete("/:reelId", authenticateToken, ReelsController.deleteReel);

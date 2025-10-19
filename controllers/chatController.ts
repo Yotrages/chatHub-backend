@@ -25,11 +25,12 @@ export const getConversations = async (
     const conversations = await Conversation.find({
       participants: userId,
     })
-      .populate("participants", "username avatar online")
+      .populate("participants", "username avatar online email")
       .populate({
         path: "lastMessage",
         populate: { path: "senderId", select: "username avatar" },
       })
+      .populate("admins", "username avatar")
       .sort({ updatedAt: -1 });
 
     res.status(200).json(conversations);

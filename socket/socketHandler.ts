@@ -648,7 +648,19 @@ export class SocketHandler {
       }
 
       await message.save();
-      await message.populate("senderId", "username avatar");
+      await message.populate([
+      {
+        path: "senderId",
+        select: "username avatar",
+      },
+      {
+        path: "reactions",
+        populate: {
+          path: "userId",
+          select: "username avatar",
+        },
+      },
+    ]);
       this.io
         .to(message.conversationId.toString())
         .emit("reaction_added", { message });

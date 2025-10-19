@@ -34,7 +34,7 @@ router.post("/", authenticateToken, upload.array('images'), PostsController.crea
 router.post("/:postId/react", authenticateToken, PostsController.addReaction);
 router.post("/:postId/comment/:commentId/react", authenticateToken, PostsController.addCommentReaction);
 router.post("/:postId/comment", authenticateToken, PostsController.createComment);
-router.post('/:postId/save', PostsController.savePost)
+router.post('/:postId/save', authenticateToken, PostsController.savePost)
 router.post('/:postId/share', authenticateToken, PostsController.trackPostShare);
 router.put("/:postId/comment/:commentId", authenticateToken, PostsController.updateComment);
 router.put("/:postId", authenticateToken, upload.array('images'), PostsController.updatePost);

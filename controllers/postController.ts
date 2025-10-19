@@ -781,63 +781,85 @@ export class PostsController {
     }
   }
 
-  static async updatePost(req: AuthRequest, res: Response) {
-    const authorId = req.user?.userId;
-    const { postId } = req.params;
-    const { content, existingImages, visibility } = req.body;
-    const images = req.files as Express.Multer.File[];
-
-    try {
-      if (!authorId) {
-        res
-          .status(HTTP_STATUS.UNAUTHORIZED)
-          .json({ error: "User not authenticated" });
+static async updatePost(req: AuthRequest, res: Response) {
+  const authorId = req.user?.userId;
+  const { postId } = req.params;
+  const { content, existingImages, visibility } = req.body;
+  const images = req.files as Express.Multer.File[];
+  
+  try {
+    if (!authorId) {
+      res
+        .status(HTTP_STATUS.UNAUTHORIZED)
+        .json({ error: "User not authenticated" });
       return;
     }
-
-      if (!content && (!images || images.length === 0)) {
-        res
-          .status(HTTP_STATUS.BAD_REQUEST)
-          .json({ error: "Post must have content or images" });
-        return;
-      }
-
-      const post = await Post.findOne({ _id: postId });
-      if (!post) {
-        res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Post not found" });
-        return;
-      }
-      if (post.authorId.toString() !== authorId) {
-        res
-          .status(HTTP_STATUS.FORBIDDEN)
-          .json({ message: "You are not authorized to update this Post" });
-        return;
-      }
-
-      const updateData: any = {};
-      if (content) updateData.content = content;
-      if (visibility) updateData.visibility = visibility
-      if (images && images.length > 0) {
-        const newImages = images.map((image) => image.path);
-        if (existingImages && existingImages.length > 0) {
-          updateData.images = [...existingImages, ...newImages];
-        } else {
-          updateData.images = newImages;
-        }
-      }
-
-      const updatedPost = await Post.findByIdAndUpdate(postId, updateData, {
-        new: true,
-      }).populate("authorId", "username avatar");
-      res
-        .status(HTTP_STATUS.OK)
-        .json({ Post: updatedPost, _id: updatedPost?._id });
-    } catch (error: any) {
-      res
-        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-        .json({ message: "Server Error" });
+    
+    const post = await Post.findOne({ _id: postId });
+    if (!post) {
+      res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Post not found" });
+      return;
     }
+    
+    if (post.authorId.toString() !== authorId) {
+      res
+        .status(HTTP_STATUS.FORBIDDEN)
+        .json({ message: "You are not authorized to update this Post" });
+      return;
+    }
+    
+    const updateData: any = {};
+    if (content !== undefined) updateData.content = content;
+    if (visibility) updateData.visibility = visibility;
+    
+    // ✅ Parse existingImages from string to array
+    let existingImagesArray: string[] = [];
+    if (existingImages) {
+      if (typeof existingImages === 'string') {
+        try {
+          // Try parsing as JSON array first
+          existingImagesArray = JSON.parse(existingImages);
+        } catch {
+          // If not JSON, treat as single URL
+          existingImagesArray = [existingImages];
+        }
+      } else if (Array.isArray(existingImages)) {
+        existingImagesArray = existingImages;
+      }
+    }
+    
+    // Build final images array
+    const newImageUrls = images && images.length > 0 
+      ? images.map((image) => image.path) 
+      : [];
+    
+    // Combine existing + new images
+    if (existingImagesArray.length > 0 || newImageUrls.length > 0) {
+      updateData.images = [...existingImagesArray, ...newImageUrls];
+    }
+    
+    // Validate we have content or images
+    if (!updateData.content && (!updateData.images || updateData.images.length === 0)) {
+      res
+        .status(HTTP_STATUS.BAD_REQUEST)
+        .json({ error: "Post must have content or images" });
+      return;
+    }
+    
+    const updatedPost = await Post.findByIdAndUpdate(postId, updateData, {
+      new: true,
+    }).populate("authorId", "username avatar");
+    
+    res
+      .status(HTTP_STATUS.OK)
+      .json({ Post: updatedPost, _id: updatedPost?._id });
+  } catch (error: any) {
+    console.error('Update post error:', error);
+    res
+      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      .json({ message: "Server Error" });
   }
+}
 
   static async trackPostShare(req: AuthRequest, res: Response) {
     const { postId } = req.body;
