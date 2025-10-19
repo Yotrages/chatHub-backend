@@ -811,16 +811,14 @@ static async updatePost(req: AuthRequest, res: Response) {
     const updateData: any = {};
     if (content !== undefined) updateData.content = content;
     if (visibility) updateData.visibility = visibility;
+    updateData.isEdited = true
     
-    // ✅ Parse existingImages from string to array
     let existingImagesArray: string[] = [];
     if (existingImages) {
       if (typeof existingImages === 'string') {
         try {
-          // Try parsing as JSON array first
           existingImagesArray = JSON.parse(existingImages);
         } catch {
-          // If not JSON, treat as single URL
           existingImagesArray = [existingImages];
         }
       } else if (Array.isArray(existingImages)) {
@@ -828,17 +826,14 @@ static async updatePost(req: AuthRequest, res: Response) {
       }
     }
     
-    // Build final images array
     const newImageUrls = images && images.length > 0 
       ? images.map((image) => image.path) 
       : [];
     
-    // Combine existing + new images
     if (existingImagesArray.length > 0 || newImageUrls.length > 0) {
       updateData.images = [...existingImagesArray, ...newImageUrls];
     }
     
-    // Validate we have content or images
     if (!updateData.content && (!updateData.images || updateData.images.length === 0)) {
       res
         .status(HTTP_STATUS.BAD_REQUEST)
@@ -852,7 +847,7 @@ static async updatePost(req: AuthRequest, res: Response) {
     
     res
       .status(HTTP_STATUS.OK)
-      .json({ Post: updatedPost, _id: updatedPost?._id });
+      .json({ post: updatedPost, _id: updatedPost?._id });
   } catch (error: any) {
     console.error('Update post error:', error);
     res
