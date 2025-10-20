@@ -516,7 +516,7 @@ export class SearchController {
       const existing = await SearchHistory.findOneAndUpdate(
         {
           userId,
-          query: query.toLowerCase(),
+          query: query.toLowerCase().trim(),
         },
         {
           $inc: { count: 1 },
@@ -549,7 +549,8 @@ export class SearchController {
       const frequentSearches = await SearchHistory.find({ userId })
         .sort({ count: -1, lastSearched: -1 })
         .limit(limitNum)
-        .select("query count lastSearched");
+        .select("query count lastSearched")
+        .lean();
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
