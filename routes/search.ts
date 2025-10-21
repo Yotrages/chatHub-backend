@@ -4,7 +4,7 @@ import { authenticateToken } from '../middleware/authMiddleware';
 
 const router = express.Router();
 
-router.get('/', SearchController.searchAll);
+router.get('/', authenticateToken, SearchController.searchAll);
 
 router.get('/suggestions', SearchController.getSuggestions);
 
