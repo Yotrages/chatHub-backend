@@ -1045,6 +1045,7 @@ export const getMessageInfo = async (
         userId: rb.userId,
         readAt: rb.readAt,
       })),
+      timestamp: message.timestamp
     });
   } catch (error: any) {
     console.log(error)

@@ -301,6 +301,7 @@ export class PostsController {
       const authorId = req.user?.userId;
 
       if (!content || !postId || !authorId) {
+        console.log({content, postId, authorId})
         res
           .status(HTTP_STATUS.BAD_REQUEST)
           .json({ error: "Missing required fields" });
@@ -883,7 +884,7 @@ static async updatePost(req: AuthRequest, res: Response) {
   }
 
   static async savePost(req: AuthRequest, res: Response) {
-    const { id } = req.params;
+    const { postId } = req.params;
     const userId = req.user?.userId;
 
     try {
@@ -893,9 +894,10 @@ static async updatePost(req: AuthRequest, res: Response) {
           .json({ error: "You are not authenticated" });
         return;
       }
-      const post = await Post.findOne({ _id: id });
+      const post = await Post.findOne({ _id: postId });
       if (!post) {
-        res.status(HTTP_STATUS.BAD_REQUEST).json({ error: "Posts not found" });
+        console.log(postId)
+        res.status(HTTP_STATUS.BAD_REQUEST).json({ error: "Post not found" });
         return;
       }
 
