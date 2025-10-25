@@ -112,13 +112,16 @@ app.use(helmet({
 
 app.use(cors({
   origin: [
-    process.env.FRONTEND_URL, "http://localhost:3000",
+    process.env.FRONTEND_URL,
+    "http://localhost:3000",
     "http://localhost:5173",
     "http://localhost:3001",
-  ],
+  ].filter(Boolean),
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Set-Cookie'],
+  maxAge: 86400, 
 }));
 
 app.use(express.json({ limit: '50mb' }));
@@ -127,7 +130,11 @@ app.use(session({
   secret: process.env.SESSION_SECRET || 'secret',
   resave: false,
   saveUninitialized: true,
-  cookie: { secure: false },
+  cookie: { 
+  secure: config.NODE_ENV === 'production', // true in production
+  sameSite: config.NODE_ENV === 'production' ? 'none' : 'lax',
+  httpOnly: true
+}
 }));
 app.use(passport.initialize());
 app.use(passport.session());
