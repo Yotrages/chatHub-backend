@@ -33,7 +33,31 @@ export const getConversations = async (
       .populate("admins", "username avatar")
       .sort({ updatedAt: -1 });
 
-    res.status(200).json(conversations);
+    // Get unread count for each conversation
+    const conversationsWithUnread = await Promise.all(
+      conversations.map(async (conv) => {
+        const unreadCount = await Message.countDocuments({
+          conversationId: conv._id,
+          senderId: { $ne: userId },
+          'readBy.userId': { $ne: userId }
+        });
+        
+        return {
+          ...conv.toObject(),
+          unreadCount
+        };
+      })
+    );
+
+    // Get count of conversations that have unread messages
+    const chatsWithUnreadCount = conversationsWithUnread.filter(
+      conv => conv.unreadCount > 0
+    ).length;
+
+    res.status(200).json({ 
+      conversations: conversationsWithUnread, 
+      chatsWithUnreadCount 
+    });
   } catch (error) {
     res
       .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
@@ -233,9 +257,9 @@ export const sendMessage = async (
       replyTo,
       createdAt: new Date(),
       updatedAt: new Date(),
-      isRead: false,
       reactions: [],
       edited: false,
+      readBy: [], 
     });
 
     await message.save();
@@ -266,6 +290,7 @@ export const sendMessage = async (
     }
 
     const sender = await User.findById(senderId).select("username avatar");
+    
     for (const participantId of conversation.participants) {
       if (participantId.toString() !== senderId) {
         await NotificationService.createNotification({
@@ -277,6 +302,13 @@ export const sendMessage = async (
           entityId: message._id,
           actionUrl: `/chat/${conversationId}`,
         });
+
+        if (req.io) {
+          req.io.to(participantId.toString()).emit("unread_count_update", {
+            conversationId,
+            increment: true
+          });
+        }
       }
     }
 

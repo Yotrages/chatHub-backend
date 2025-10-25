@@ -11,7 +11,7 @@ const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: (req, file) => {
     return {
-      folder: "posts", 
+      folder: file.fieldname === 'image' ? 'posts' : 'comments', 
       allowedFormats: ["jpeg", "png", "jpg", "gif", "webp", "svg", "mp4", "mp3"], 
       resource_type: "auto",
     };
@@ -33,7 +33,7 @@ router.get("/:postId/comments/:commentId", authenticateToken, PostsController.ge
 router.post("/", authenticateToken, upload.array('images'), PostsController.createPost);
 router.post("/:postId/react", authenticateToken, PostsController.addReaction);
 router.post("/:postId/comment/:commentId/react", authenticateToken, PostsController.addCommentReaction);
-router.post("/:postId/comment", authenticateToken, PostsController.createComment);
+router.post("/:postId/comment", authenticateToken, upload.single('file'), PostsController.createComment);
 router.post('/:postId/save', authenticateToken, PostsController.savePost)
 router.post('/:postId/share', authenticateToken, PostsController.trackPostShare);
 router.put("/:postId/comment/:commentId", authenticateToken, PostsController.updateComment);

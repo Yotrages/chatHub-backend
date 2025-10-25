@@ -10,7 +10,7 @@ const reactionSchema = new Schema(
     },
     emoji: {
       category: {
-        type: String,
+      type: String,
         required: true,
       },
       name: {
@@ -82,7 +82,7 @@ const messageSchema = new Schema<IMessage>(
           type: Date,
           default: Date.now,
         },
-      },
+    },
     ],
   },
   {

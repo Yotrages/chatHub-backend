@@ -21,7 +21,7 @@ const storage = new CloudinaryStorage({
 const upload = multer({ storage })
 
 
-router.post('/register', upload.single("avatar"),(req, res, next) => {
+router.post('/register', upload.single("avatar"), (req, res, next) => {
   register(req, res).catch(next);
 });
 
