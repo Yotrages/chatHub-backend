@@ -131,7 +131,7 @@ app.use(session({
   resave: false,
   saveUninitialized: true,
   cookie: { 
-  secure: config.NODE_ENV === 'production', // true in production
+  secure: config.NODE_ENV === 'production', 
   sameSite: config.NODE_ENV === 'production' ? 'none' : 'lax',
   httpOnly: true
 }

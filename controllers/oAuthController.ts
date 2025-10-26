@@ -18,7 +18,7 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
     if (req.query.state) {
       const decoded = JSON.parse(Buffer.from(req.query.state as string, "base64").toString());
       intent = decoded.intent || "login";
-      from = decoded.from || undefined
+      from = decoded.from || undefined; 
       successRedirect = decoded.redirectUrl || "oauth-success";
       
       const timestamp = decoded.timestamp;
@@ -84,11 +84,20 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
         email: existingUser.email,
       });
 
-      return res.redirect(
-        `${redirectBase}/${successRedirect}?token=${token}&from=${from}&type=login&id=${existingUser._id}&name=${encodeURIComponent(
-          existingUser.username || ""
-        )}&email=${encodeURIComponent(existingUser.email)}&avatar=${encodeURIComponent(existingUser.avatar)}`
-      );
+      const params = new URLSearchParams({
+    token,
+    type: 'login',
+    id: existingUser._id.toString(),
+  name: existingUser.username || '',
+  email: existingUser.email,
+  avatar: existingUser.avatar || '',
+});
+
+if (from) {
+  params.append('from', from);
+}
+
+  return res.redirect(`${redirectBase}/${successRedirect}?${params.toString()}`);
     }
 
   } catch (error) {
@@ -103,12 +112,15 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
   }
 };
 
-export const generateOAuthState = (intent: "login" | "register", redirectUrl?: string) => {
-  const state = {
+export const generateOAuthState = (intent: "login" | "register", redirectUrl?: string, from?: string) => {
+  const state: any = {
     intent,
     redirectUrl: redirectUrl || "oauth-success",
     timestamp: Date.now()
   };
+  if (from) {
+    state.from = from;
+  }
   return Buffer.from(JSON.stringify(state)).toString("base64");
 };
 
