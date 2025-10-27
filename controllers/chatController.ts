@@ -134,23 +134,6 @@ export const createConversation = async (
     await conversation.save();
     await conversation.populate("participants", "username avatar online");
 
-    const sender = await User.findById(userId).select("username avatar");
-    for (const participantId of participantIds) {
-      if (participantId !== userId) {
-        await NotificationService.createNotification({
-          recipientId: participantId,
-          senderId: userId,
-          type: "message",
-          message: `${
-            sender?.username || "Someone"
-          } added you to a ${type} conversation`,
-          entityType: "conversation",
-          entityId: conversation._id,
-          actionUrl: `/conversation/${conversation._id}`,
-        });
-      }
-    }
-
     res.status(HTTP_STATUS.CREATED).json(conversation);
   } catch (error: any) {
     console.error("Conversation creation error:", error);

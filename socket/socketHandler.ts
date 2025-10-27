@@ -299,7 +299,6 @@ export class SocketHandler {
       let callMessage: string;
 
       if (wasInConversation) {
-        // They talked for at least 30 seconds - this is "ended" due to disconnection
         callStatus = "ended";
         callMessage = `${
           callSession.isVideo ? "Video" : "Voice"
