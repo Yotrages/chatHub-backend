@@ -629,8 +629,16 @@ export const updateUser = async (req: Request, res: Response) => {
 
     const updateData: any = { ...formData };
 
+    if (updateData.avatar && (typeof updateData.avatar !== 'string' || !updateData.avatar)) {
+      delete updateData.avatar;
+    }
+    if (updateData.coverImage && (typeof updateData.coverImage !== 'string' || !updateData.coverImage)) {
+      delete updateData.coverImage;
+    }
+
     if (req.files) {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+      
       if (files.avatar && files.avatar[0]) {
         const avatarResult = await cloudinary.uploader.upload(
           files.avatar[0].path,
@@ -641,6 +649,7 @@ export const updateUser = async (req: Request, res: Response) => {
         );
         updateData.avatar = avatarResult.secure_url;
       }
+      
       if (files.coverImage && files.coverImage[0]) {
         const coverResult = await cloudinary.uploader.upload(
           files.coverImage[0].path,
@@ -656,6 +665,7 @@ export const updateUser = async (req: Request, res: Response) => {
 
     const updatedUser = await User.findByIdAndUpdate(id, updateData, {
       new: true,
+      runValidators: true, // Add this to validate before saving
     }).select("-password");
 
     res.status(HTTP_STATUS.OK).json({
