@@ -666,8 +666,7 @@ export const updateUser = async (req: Request, res: Response) => {
     console.error("Update user error:", error);
     res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
       error: "Server error during profile update",
-      details:
-        process.env.NODE_ENV === "development" ? error.message : undefined,
+      details: error.message,
     });
   }
 };

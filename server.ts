@@ -14,7 +14,7 @@ import configurePassport from './config/passport.js';
 import { SocketHandler } from './socket/socketHandler.js';
 import connectDB from './config/db.js';
 import { config, HTTP_STATUS } from './utils/constant.js';
-import { generalLimiter } from './middleware/validation.js';
+import { authLimiter, generalLimiter, readLimiter } from './middleware/validation.js';
 import notificationRoutes from './routes/notification';
 import followRoutes from './routes/follow';
 import reelsRoutes from './routes/reels.js';
@@ -142,9 +142,6 @@ app.use(passport.session());
 passport.serializeUser((user, done) => done(null, user));
 passport.deserializeUser((user: any, done) => done(null, user));
 
-app.use(generalLimiter);
-
-
 app.get('/health', (req, res) => {
   res.status(HTTP_STATUS.OK).json({
     success: true,
@@ -176,17 +173,17 @@ if (config.NODE_ENV !== 'production') {
 }
 
 // API routes
-app.use('/api/auth', authRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/posts', postsRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/follows', followRoutes);
-app.use('/api/reels', reelsRoutes);
-app.use('/api/stories', storiesRoutes);
-app.use('/api/search', searchRoutes)
-app.use('/api/settings', userSettings)
-app.use('/api', memoryThreads)
-app.use('/api/videos', videoRoutes)
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/chat', generalLimiter, chatRoutes);
+app.use('/api/posts', generalLimiter, postsRoutes);
+app.use('/api/notifications', readLimiter, notificationRoutes);
+app.use('/api/follows', generalLimiter, followRoutes);
+app.use('/api/reels', readLimiter, reelsRoutes);
+app.use('/api/stories', readLimiter, storiesRoutes);
+app.use('/api/search', readLimiter, searchRoutes);
+app.use('/api/settings', generalLimiter, userSettings);
+app.use('/api', generalLimiter, memoryThreads);
+app.use('/api/videos', readLimiter, videoRoutes);
 
 app.use('*', (req, res) => {
   res.status(HTTP_STATUS.NOT_FOUND).json({

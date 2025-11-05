@@ -75,25 +75,83 @@ export const validate = (schema: Joi.ObjectSchema) => {
 };
 
 
-
-export const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10, 
-  message: {
-    success: false,
-    message: 'Too many authentication attempts, please try again later.',
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
+// Per-user rate limiter using IP + user ID if authenticated
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
-  max: 100,
+  max: 500, 
   message: {
     success: false,
     message: 'Too many requests, please try again later.',
   },
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: (req) => {
+    if (req.user && (req.user as any).userId) {
+      return `user_${(req.user as any).userId}`;
+    }
+    return req.ip || req.socket.remoteAddress || 'unknown';
+  },
+  skip: (req) => req.path === '/health' || req.path === '/socket-status',
+});
+
+export const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20, 
+  message: {
+    success: false,
+    message: 'Too many authentication attempts, please try again later.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    return req.ip || req.socket.remoteAddress || 'unknown';
+  },
+});
+
+export const readLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
+  message: {
+    success: false,
+    message: 'Too many requests, please try again later.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    if (req.user && (req.user as any).userId) {
+      return `user_${(req.user as any).userId}`;
+    }
+    return req.ip || req.socket.remoteAddress || 'unknown';
+  },
+});
+
+export const writeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  message: {
+    success: false,
+    message: 'Too many requests, please slow down.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    if (req.user && (req.user as any).userId) {
+      return `user_${(req.user as any).userId}`;
+    }
+    return req.ip || req.socket.remoteAddress || 'unknown';
+  },
+});
+
+export const strictLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, 
+  max: 10,
+  message: {
+    success: false,
+    message: 'Too many attempts, please try again later.',
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    return req.ip || req.socket.remoteAddress || 'unknown';
+  },
 });
