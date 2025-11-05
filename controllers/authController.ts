@@ -614,6 +614,12 @@ export const updateUser = async (req: Request, res: Response) => {
     const userId = req.user?.userId;
     const formData = req.body;
 
+    // Add this debugging
+    console.log('=== UPDATE USER DEBUG ===');
+    console.log('req.body:', req.body);
+    console.log('req.files:', req.files);
+    console.log('========================');
+
     if (userId !== id) {
       res
         .status(HTTP_STATUS.FORBIDDEN)
@@ -627,15 +633,27 @@ export const updateUser = async (req: Request, res: Response) => {
       return;
     }
 
-    const updateData: any = { ...formData };
+    // Start with an empty object instead of spreading formData
+    const updateData: any = {};
 
-    if (updateData.avatar && (typeof updateData.avatar !== 'string' || !updateData.avatar)) {
-      delete updateData.avatar;
+    // Manually copy only valid fields
+    if (formData.name && typeof formData.name === 'string') {
+      updateData.name = formData.name;
     }
-    if (updateData.coverImage && (typeof updateData.coverImage !== 'string' || !updateData.coverImage)) {
-      delete updateData.coverImage;
+    if (formData.bio !== undefined) {
+      updateData.bio = formData.bio;
+    }
+    if (formData.location !== undefined) {
+      updateData.location = formData.location;
+    }
+    if (formData.website !== undefined) {
+      updateData.website = formData.website;
+    }
+    if (formData.isPrivate !== undefined) {
+      updateData.isPrivate = formData.isPrivate === 'true' || formData.isPrivate === true;
     }
 
+    // Handle file uploads
     if (req.files) {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       
@@ -663,9 +681,11 @@ export const updateUser = async (req: Request, res: Response) => {
       }
     }
 
+    console.log('Final updateData:', updateData);
+
     const updatedUser = await User.findByIdAndUpdate(id, updateData, {
       new: true,
-      runValidators: true, // Add this to validate before saving
+      runValidators: true,
     }).select("-password");
 
     res.status(HTTP_STATUS.OK).json({
