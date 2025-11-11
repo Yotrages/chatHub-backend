@@ -614,11 +614,9 @@ export const updateUser = async (req: Request, res: Response) => {
     const userId = req.user?.userId;
     const formData = req.body;
 
-    // Add this debugging
     console.log('=== UPDATE USER DEBUG ===');
     console.log('req.body:', req.body);
     console.log('req.files:', req.files);
-    console.log('========================');
 
     if (userId !== id) {
       res
@@ -633,10 +631,8 @@ export const updateUser = async (req: Request, res: Response) => {
       return;
     }
 
-    // Start with an empty object instead of spreading formData
     const updateData: any = {};
 
-    // Manually copy only valid fields
     if (formData.name && typeof formData.name === 'string') {
       updateData.name = formData.name;
     }
@@ -653,7 +649,6 @@ export const updateUser = async (req: Request, res: Response) => {
       updateData.isPrivate = formData.isPrivate === 'true' || formData.isPrivate === true;
     }
 
-    // Handle file uploads
     if (req.files) {
       const files = req.files as { [fieldname: string]: Express.Multer.File[] };
       

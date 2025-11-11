@@ -155,7 +155,7 @@ export class storiesController {
       res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
         success: false,
         error: "Server error",
-        message: "Failed to create story",
+        message: error,
       });
     }
   }
