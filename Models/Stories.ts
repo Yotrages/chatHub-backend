@@ -5,12 +5,10 @@ const storiesSchema = new Schema<IStories>({
   fileType: {
     type: String,
     enum: ["image", "video"],
-    required: true,
     default: "video",
   },
   fileUrl: {
     type: String,
-    required: true
   },
   textStyle: {
     type: String,

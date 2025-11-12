@@ -89,7 +89,7 @@ export class SearchController {
         useTextSearch
       );
 
-      if (userId) {
+      if (userId && trimmedQuery.length >= 5) {
         await SearchController.trackSearch(trimmedQuery, userId);
       }
       let searchCriteria;

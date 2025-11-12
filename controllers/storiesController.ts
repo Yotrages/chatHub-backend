@@ -80,6 +80,11 @@ export class storiesController {
         return;
       }
 
+      console.log("file", file)
+      console.log("fileUrl", fileType)
+      console.log("text", text)
+
+
       const allowedTypes = ["image", "video"];
       if (fileType && !allowedTypes.includes(fileType.toLowerCase())) {
         res.status(HTTP_STATUS.BAD_REQUEST).json({
@@ -123,7 +128,9 @@ export class storiesController {
       });
 
       await newStories.save();
+      console.log("Story created", newStories)
       await newStories.populate("authorId", "username avatar");
+
 
       if (text) {
         const mentionedUserIds = await detectMentions(text);
