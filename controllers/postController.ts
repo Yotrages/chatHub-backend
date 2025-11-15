@@ -8,6 +8,33 @@ import { NotificationService } from "../services/notificationServices";
 import { UserSettings } from "../Models/userSettings";
 
 export class PostsController {
+  private static async areUsersBlocked(
+    userId1: string,
+    userId2: string
+  ): Promise<boolean> {
+    const [settings1, settings2] = await Promise.all([
+      UserSettings.findOne({ userId: userId1 }),
+      UserSettings.findOne({ userId: userId2 }),
+    ]);
+
+    const userId1Obj = new mongoose.Types.ObjectId(userId1);
+    const userId2Obj = new mongoose.Types.ObjectId(userId2);
+
+    return (
+      settings1?.security.blockedUsers.some((id) => id.equals(userId2Obj)) ||
+      settings2?.security.blockedUsers.some((id) => id.equals(userId1Obj)) ||
+      false
+    );
+  }
+
+  private static async shouldSendNotification(
+    recipientId: string,
+    notificationType: 'newFollower' | 'postLiked' | 'postCommented' | 'mentioned'
+  ): Promise<boolean> {
+    const recipientSettings = await UserSettings.findOne({ userId: recipientId });
+    return recipientSettings?.notifications.inApp[notificationType] ?? true;
+  }
+
   static async getPosts(req: Request, res: Response): Promise<void> {
     try {
       const userId = req.user?.userId;
@@ -21,10 +48,16 @@ export class PostsController {
         const currentUser = await User.findById(userId).select("following");
         const followingIds = currentUser?.following || [];
         const userSetting = await UserSettings.findOne({ userId: userId });
-        const blockedPosts = userSetting?.content.blockedPosts;
+        const blockedPosts = userSetting?.content.blockedPosts || [];
+        const blockedUsers = userSetting?.security.blockedUsers || [];
 
         const allPosts = await Post.aggregate([
-          { $match: { isDeleted: false } },
+          { 
+            $match: { 
+              isDeleted: false,
+              authorId: { $nin: blockedUsers } 
+            } 
+          },
           {
             $addFields: {
               isFollowing: {
@@ -51,9 +84,9 @@ export class PostsController {
           },
         ]);
 
-        const unblockedPosts = allPosts.filter((post) => {
-          !blockedPosts?.some((item) => item.toString() === post._id);
-        });
+        const unblockedPosts = allPosts.filter((post) => 
+          !blockedPosts.some((item) => item.toString() === post._id.toString())
+        );
 
         posts = unblockedPosts;
         await Post.populate(posts, [
@@ -100,14 +133,22 @@ export class PostsController {
   static async getPostComments(req: Request, res: Response): Promise<void> {
     try {
       const { postId } = req.params;
+      const userId = req.user?.userId;
       const page = parseInt(req.query.page as string) || 1;
       const limit = parseInt(req.query.limit as string) || 10;
       const skip = (page - 1) * limit;
+
+      let blockedUsers: mongoose.Types.ObjectId[] = [];
+      if (userId) {
+        const userSettings = await UserSettings.findOne({ userId });
+        blockedUsers = userSettings?.security.blockedUsers || [];
+      }
 
       const topLevelComments = await Comment.find({
         dynamicId: postId,
         parentCommentId: null,
         isDeleted: false,
+        authorId: { $nin: blockedUsers }, 
       })
         .populate("authorId", "username avatar")
         .populate("reactions.userId", "username avatar")
@@ -118,7 +159,8 @@ export class PostsController {
       const commentsWithReplies = await Promise.all(
         topLevelComments.map(async (comment) => {
           const replies = await PostsController.getNestedReplies(
-            comment._id.toString()
+            comment._id.toString(),
+            blockedUsers
           );
           return {
             ...comment.toObject(),
@@ -131,6 +173,7 @@ export class PostsController {
         dynamicId: postId,
         parentCommentId: null,
         isDeleted: false,
+        authorId: { $nin: blockedUsers },
       });
 
       res.json({
@@ -155,18 +198,28 @@ export class PostsController {
   static async getSingleCommentReplies(req: Request, res: Response) {
     try {
       const { postId, commentId } = req.body;
+      const userId = req.user?.userId;
+
+      let blockedUsers: mongoose.Types.ObjectId[] = [];
+      if (userId) {
+        const userSettings = await UserSettings.findOne({ userId });
+        blockedUsers = userSettings?.security.blockedUsers || [];
+      }
 
       const comment = await Comment.findOne({
         _id: commentId,
         dynamicId: postId,
         parentCommentId: null,
       });
+      
       if (!comment) {
         res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Comment not found" });
         return;
       }
+      
       const replies = await PostsController.getNestedReplies(
-        comment._id.toString()
+        comment._id.toString(),
+        blockedUsers
       );
 
       const response = { ...comment.toObject(), replies };
@@ -176,10 +229,14 @@ export class PostsController {
     }
   }
 
-  static async getNestedReplies(parentCommentId: string): Promise<any[]> {
+  static async getNestedReplies(
+    parentCommentId: string,
+    blockedUsers: mongoose.Types.ObjectId[] = []
+  ): Promise<any[]> {
     const replies = await Comment.find({
       parentCommentId,
       isDeleted: false,
+      authorId: { $nin: blockedUsers },
     })
       .populate("authorId", "username avatar")
       .populate("reactions.userId", "username avatar")
@@ -188,7 +245,8 @@ export class PostsController {
     const repliesWithNested = await Promise.all(
       replies.map(async (reply) => {
         const nestedReplies = await PostsController.getNestedReplies(
-          reply._id.toString()
+          reply._id.toString(),
+          blockedUsers
         );
         return {
           ...reply.toObject(),
@@ -210,10 +268,11 @@ export class PostsController {
         res
           .status(HTTP_STATUS.UNAUTHORIZED)
           .json({ error: "User not authenticated" });
-      return;
-    }
+        return;
+      }
 
       const userSettings = await UserSettings.findOne({ userId });
+      
       if (userSettings?.account.isDeactivated) {
         res
           .status(HTTP_STATUS.FORBIDDEN)
@@ -245,37 +304,34 @@ export class PostsController {
         $inc: { postsCount: 1 },
       });
 
-      if (content && userSettings?.notifications.inApp.mentioned) {
+      if (content) {
         const mentionedUserIds = await detectMentions(content);
         const sender = await User.findById(userId).select("username");
+        
         for (const mentionedUserId of mentionedUserIds) {
-          let mentionedObjectId = new mongoose.Types.ObjectId(mentionedUserId);
-          if (mentionedUserId !== userId) {
-            const recipientSettings = await UserSettings.findOne({
-              userId: mentionedObjectId,
-            });
-            if (
-              recipientSettings?.security.blockedUsers.includes(
-                new mongoose.Types.ObjectId(userId)
-              ) ||
-              userSettings?.security.blockedUsers.includes(mentionedObjectId)
-            ) {
-              continue;
-            }
+          if (mentionedUserId === userId) continue;
 
-            if (recipientSettings?.notifications.inApp.mentioned) {
-              await NotificationService.createNotification({
-                recipientId: mentionedUserId,
-                senderId: userId,
-                type: "mention",
-                message: `${
-                  sender?.username || "Someone"
-                } mentioned you in a post`,
-                entityType: "post",
-                entityId: post._id.toString(),
-                actionUrl: `/post/${post._id}`,
-              });
-            }
+          const mentionedObjectId = new mongoose.Types.ObjectId(mentionedUserId);
+          
+          const isBlocked = await PostsController.areUsersBlocked(userId, mentionedUserId);
+          if (isBlocked) continue;
+
+          const recipientSettings = await UserSettings.findOne({
+            userId: mentionedObjectId,
+          });
+
+          if (!recipientSettings?.privacy.allowTagging) continue;
+
+          if (recipientSettings?.notifications.inApp.mentioned) {
+            await NotificationService.createNotification({
+              recipientId: mentionedUserId,
+              senderId: userId,
+              type: "mention",
+              message: `${sender?.username || "Someone"} mentioned you in a post`,
+              entityType: "post",
+              entityId: post._id.toString(),
+              actionUrl: `/post/${post._id}`,
+            });
           }
         }
       }
@@ -301,7 +357,6 @@ export class PostsController {
       const authorId = req.user?.userId;
 
       if (!content || !postId || !authorId) {
-        console.log({content, postId, authorId})
         res
           .status(HTTP_STATUS.BAD_REQUEST)
           .json({ error: "Missing required fields" });
@@ -314,12 +369,34 @@ export class PostsController {
         return;
       }
 
+      const isBlocked = await PostsController.areUsersBlocked(
+        authorId,
+        post.authorId.toString()
+      );
+      if (isBlocked) {
+        res
+          .status(HTTP_STATUS.FORBIDDEN)
+          .json({ error: "Cannot comment on this post" });
+        return;
+      }
+
       if (parentCommentId) {
         const parentComment = await Comment.findById(parentCommentId);
         if (!parentComment) {
           res
             .status(HTTP_STATUS.NOT_FOUND)
             .json({ error: "Parent comment not found" });
+          return;
+        }
+
+        const isBlockedByParent = await PostsController.areUsersBlocked(
+          authorId,
+          parentComment.authorId.toString()
+        );
+        if (isBlockedByParent) {
+          res
+            .status(HTTP_STATUS.FORBIDDEN)
+            .json({ error: "Cannot reply to this comment" });
           return;
         }
       }
@@ -348,31 +425,18 @@ export class PostsController {
       await newComment.populate("authorId", "username avatar");
 
       if (!parentCommentId && post.authorId.toString() !== authorId) {
-        const sender = await User.findById(authorId).select("username");
-        await NotificationService.createNotification({
-          recipientId: post.authorId.toString(),
-          senderId: authorId,
-          type: "comment",
-          message: `${
-            sender?.username || "Someone"
-          } commented on your post`,
-          entityType: "comment",
-          entityId: newComment._id.toString(),
-          actionUrl: `/post/${postId}#comment-${newComment._id}`,
-        });
-      }
+        const shouldNotify = await PostsController.shouldSendNotification(
+          post.authorId.toString(),
+          'postCommented'
+        );
 
-      if (parentCommentId) {
-        const parentComment = await Comment.findById(parentCommentId);
-        if (parentComment && parentComment.authorId.toString() !== authorId) {
+        if (shouldNotify) {
           const sender = await User.findById(authorId).select("username");
           await NotificationService.createNotification({
-            recipientId: parentComment.authorId.toString(),
+            recipientId: post.authorId.toString(),
             senderId: authorId,
-            type: "reply",
-            message: `${
-              sender?.username || "Someone"
-            } replied to your comment`,
+            type: "comment",
+            message: `${sender?.username || "Someone"} commented on your post`,
             entityType: "comment",
             entityId: newComment._id.toString(),
             actionUrl: `/post/${postId}#comment-${newComment._id}`,
@@ -380,17 +444,51 @@ export class PostsController {
         }
       }
 
+      if (parentCommentId) {
+        const parentComment = await Comment.findById(parentCommentId);
+        if (parentComment && parentComment.authorId.toString() !== authorId) {
+          const shouldNotify = await PostsController.shouldSendNotification(
+            parentComment.authorId.toString(),
+            'postCommented'
+          );
+
+          if (shouldNotify) {
+            const sender = await User.findById(authorId).select("username");
+            await NotificationService.createNotification({
+              recipientId: parentComment.authorId.toString(),
+              senderId: authorId,
+              type: "reply",
+              message: `${sender?.username || "Someone"} replied to your comment`,
+              entityType: "comment",
+              entityId: newComment._id.toString(),
+              actionUrl: `/post/${postId}#comment-${newComment._id}`,
+            });
+          }
+        }
+      }
+
       const mentionedUserIds = await detectMentions(content);
       const sender = await User.findById(authorId).select("username");
+      
       for (const mentionedUserId of mentionedUserIds) {
-        if (mentionedUserId !== authorId) {
+        if (mentionedUserId === authorId) continue;
+
+        const isBlocked = await PostsController.areUsersBlocked(authorId, mentionedUserId);
+        if (isBlocked) continue;
+
+        const recipientSettings = await UserSettings.findOne({
+          userId: new mongoose.Types.ObjectId(mentionedUserId),
+        });
+
+        if (
+          recipientSettings?.privacy.allowTagging &&
+          recipientSettings?.notifications.inApp.mentioned
+        ) {
           await NotificationService.createNotification({
             recipientId: mentionedUserId,
             senderId: authorId,
             type: "mention",
-            message: `${
-              sender?.username || "Someone"
-            } mentioned you in a comment`,
+            message: `${sender?.username || "Someone"} mentioned you in a comment`,
             entityType: "comment",
             entityId: newComment._id.toString(),
             actionUrl: `/post/${postId}#comment-${newComment._id}`,
@@ -423,14 +521,26 @@ export class PostsController {
         res
           .status(HTTP_STATUS.UNAUTHORIZED)
           .json({ error: "User not authenticated" });
-      return;
-    }
+        return;
+      }
 
       const post = await Post.findById(postId);
       if (!post) {
         res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Post not found" });
         return;
       }
+
+      const isBlocked = await PostsController.areUsersBlocked(
+        userId,
+        post.authorId.toString()
+      );
+      if (isBlocked) {
+        res
+          .status(HTTP_STATUS.FORBIDDEN)
+          .json({ error: "Cannot react to this post" });
+        return;
+      }
+
       const userObjectId = new mongoose.Types.ObjectId(userId);
 
       post.reactions = post.reactions.filter(
@@ -470,29 +580,36 @@ export class PostsController {
         isLiked = true;
         actionType = "added";
 
-        if (post.authorId.toString() !== userId) {
-          const sender = await User.findById(userId).select("username");
-          await NotificationService.createNotification({
-            recipientId: post.authorId.toString(),
-            senderId: userId,
-            type: "like_post",
-            message: `${
-              sender?.username || "Someone"
-            } reacted to your post`,
-            entityType: "post",
-            entityId: post._id.toString(),
-            actionUrl: `/post/${post._id}`,
-          });
+        if (post.authorId.toString() !== userId && actionType === "added") {
+          const shouldNotify = await PostsController.shouldSendNotification(
+            post.authorId.toString(),
+            'postLiked'
+          );
+
+          if (shouldNotify) {
+            const sender = await User.findById(userId).select("username");
+            await NotificationService.createNotification({
+              recipientId: post.authorId.toString(),
+              senderId: userId,
+              type: "like_post",
+              message: `${sender?.username || "Someone"} reacted to your post`,
+              entityType: "post",
+              entityId: post._id.toString(),
+              actionUrl: `/post/${post._id}`,
+            });
+          }
         }
       }
 
       await post.save();
       await post.populate("reactions.userId", "username avatar");
+      
       const user = await User.findById(userId);
       if (!user) {
         res.status(HTTP_STATUS.NOT_FOUND).json({ error: "User not found" });
         return;
       }
+      
       if (!user.likedPost.includes(post._id)) {
         user.likedPost.push(post._id);
         await user.save();
@@ -527,12 +644,23 @@ export class PostsController {
         res
           .status(HTTP_STATUS.UNAUTHORIZED)
           .json({ error: "User not authenticated" });
-      return;
-    }
+        return;
+      }
 
       const comment = await Comment.findById(commentId);
       if (!comment) {
         res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Comment not found" });
+        return;
+      }
+
+      const isBlocked = await PostsController.areUsersBlocked(
+        userId,
+        comment.authorId.toString()
+      );
+      if (isBlocked) {
+        res
+          .status(HTTP_STATUS.FORBIDDEN)
+          .json({ error: "Cannot react to this comment" });
         return;
       }
 
@@ -575,19 +703,24 @@ export class PostsController {
         isLiked = true;
         actionType = "added";
 
-        if (comment.authorId.toString() !== userId) {
-          const sender = await User.findById(userId).select("username");
-          await NotificationService.createNotification({
-            recipientId: comment.authorId.toString(),
-            senderId: userId,
-            type: "like_comment",
-            message: `${
-              sender?.username || "Someone"
-            } reacted to your comment`,
-            entityType: "comment",
-            entityId: comment._id.toString(),
-            actionUrl: `/post/${comment.dynamicId}#comment-${comment._id}`,
-          });
+        if (comment.authorId.toString() !== userId && actionType === "added") {
+          const shouldNotify = await PostsController.shouldSendNotification(
+            comment.authorId.toString(),
+            'postLiked'
+          );
+
+          if (shouldNotify) {
+            const sender = await User.findById(userId).select("username");
+            await NotificationService.createNotification({
+              recipientId: comment.authorId.toString(),
+              senderId: userId,
+              type: "like_comment",
+              message: `${sender?.username || "Someone"} reacted to your comment`,
+              entityType: "comment",
+              entityId: comment._id.toString(),
+              actionUrl: `/post/${comment.dynamicId}#comment-${comment._id}`,
+            });
+          }
         }
       }
 
@@ -691,6 +824,7 @@ export class PostsController {
   static async getSinglePost(req: Request, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      const userId = req.user?.userId;
 
       const post = await Post.findById(id)
         .populate("authorId", "username avatar")
@@ -701,27 +835,16 @@ export class PostsController {
         return;
       }
 
-      // const topLevelComments = await Comment.find({
-      //   dynamicId: id,
-      //   parentCommentId: null,
-      //   isDeleted: false,
-      // })
-      //   .populate("authorId", "username avatar")
-      //   .populate("reactions.userId", "username avatar")
-      //   .sort({ createdAt: -1 });
-
-      // // Get nested replies for each comment
-      // const commentsWithReplies = await Promise.all(
-      //   topLevelComments.map(async (comment) => {
-      //     const replies = await PostsController.getNestedReplies(
-      //       comment._id.toString()
-      //     );
-      //     return {
-      //       ...comment.toObject(),
-      //       replies,
-      //     };
-      //   })
-      // );
+      if (userId) {
+        const isBlocked = await PostsController.areUsersBlocked(
+          userId,
+          post.authorId._id.toString()
+        );
+        if (isBlocked) {
+          res.status(HTTP_STATUS.FORBIDDEN).json({ error: "Cannot view this post" });
+          return;
+        }
+      }
 
       res.json({
         success: true,
@@ -782,148 +905,190 @@ export class PostsController {
     }
   }
 
-static async updatePost(req: AuthRequest, res: Response) {
-  const authorId = req.user?.userId;
-  const { postId } = req.params;
-  const { content, existingImages, visibility } = req.body;
-  const images = req.files as Express.Multer.File[];
-  
-  try {
-    if (!authorId) {
-      res
-        .status(HTTP_STATUS.UNAUTHORIZED)
-        .json({ error: "User not authenticated" });
-      return;
-    }
+  static async updatePost(req: AuthRequest, res: Response) {
+    const authorId = req.user?.userId;
+    const { postId } = req.params;
+    const { content, existingImages, visibility } = req.body;
+    const images = req.files as Express.Multer.File[];
     
-    const post = await Post.findOne({ _id: postId });
-    if (!post) {
-      res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Post not found" });
-      return;
-    }
-    
-    if (post.authorId.toString() !== authorId) {
-      res
-        .status(HTTP_STATUS.FORBIDDEN)
-        .json({ message: "You are not authorized to update this Post" });
-      return;
-    }
-    
-    const updateData: any = {};
-    if (content !== undefined) updateData.content = content;
-    if (visibility) updateData.visibility = visibility;
-    updateData.isEdited = true
-    
-    let existingImagesArray: string[] = [];
-    if (existingImages) {
-      if (typeof existingImages === 'string') {
-        try {
-          existingImagesArray = JSON.parse(existingImages);
-        } catch {
-          existingImagesArray = [existingImages];
-        }
-      } else if (Array.isArray(existingImages)) {
-        existingImagesArray = existingImages;
+    try {
+      if (!authorId) {
+        res
+          .status(HTTP_STATUS.UNAUTHORIZED)
+          .json({ error: "User not authenticated" });
+        return;
       }
-    }
-    
-    const newImageUrls = images && images.length > 0 
-      ? images.map((image) => image.path) 
-      : [];
-    
-    if (existingImagesArray.length > 0 || newImageUrls.length > 0) {
-      updateData.images = [...existingImagesArray, ...newImageUrls];
-    }
-    
-    if (!updateData.content && (!updateData.images || updateData.images.length === 0)) {
+
+      const userSettings = await UserSettings.findOne({ userId: authorId });
+      if (userSettings?.account.isDeactivated) {
+        res
+          .status(HTTP_STATUS.FORBIDDEN)
+          .json({ error: "Cannot update post: Account is deactivated" });
+        return;
+      }
+      
+      const post = await Post.findOne({ _id: postId });
+      if (!post) {
+        res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Post not found" });
+        return;
+      }
+      
+      if (post.authorId.toString() !== authorId) {
+        res
+          .status(HTTP_STATUS.FORBIDDEN)
+          .json({ message: "You are not authorized to update this Post" });
+        return;
+      }
+      
+      const updateData: any = {};
+      if (content !== undefined) updateData.content = content;
+      if (visibility) updateData.visibility = visibility;
+      updateData.isEdited = true;
+      
+      let existingImagesArray: string[] = [];
+      if (existingImages) {
+        if (typeof existingImages === 'string') {
+          try {
+            existingImagesArray = JSON.parse(existingImages);
+          } catch {
+            existingImagesArray = [existingImages];
+          }
+        } else if (Array.isArray(existingImages)) {
+          existingImagesArray = existingImages;
+        }
+      }
+      
+      const newImageUrls = images && images.length > 0 
+        ? images.map((image) => image.path) 
+        : [];
+      
+      if (existingImagesArray.length > 0 || newImageUrls.length > 0) {
+        updateData.images = [...existingImagesArray, ...newImageUrls];
+      }
+      
+      if (!updateData.content && (!updateData.images || updateData.images.length === 0)) {
+        res
+          .status(HTTP_STATUS.BAD_REQUEST)
+          .json({ error: "Post must have content or images" });
+        return;
+      }
+      
+      const updatedPost = await Post.findByIdAndUpdate(postId, updateData, {
+        new: true,
+      }).populate("authorId", "username avatar");
+      
       res
-        .status(HTTP_STATUS.BAD_REQUEST)
-        .json({ error: "Post must have content or images" });
-      return;
+        .status(HTTP_STATUS.OK)
+        .json({ post: updatedPost, _id: updatedPost?._id });
+    } catch (error: any) {
+      console.error('Update post error:', error);
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ message: "Server Error" });
     }
-    
-    const updatedPost = await Post.findByIdAndUpdate(postId, updateData, {
-      new: true,
-    }).populate("authorId", "username avatar");
-    
-    res
-      .status(HTTP_STATUS.OK)
-      .json({ post: updatedPost, _id: updatedPost?._id });
-  } catch (error: any) {
-    console.error('Update post error:', error);
-    res
-      .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-      .json({ message: "Server Error" });
   }
-}
 
   static async trackPostShare(req: AuthRequest, res: Response) {
-    const { postId } = req.body;
-    const userId = req.user?.userId;
+    try {
+      const { postId } = req.body;
+      const userId = req.user?.userId;
 
-    if (!userId) {
-      res.status(HTTP_STATUS.UNAUTHORIZED);
-      throw new Error("User not authenticated");
+      if (!userId) {
+        res
+          .status(HTTP_STATUS.UNAUTHORIZED)
+          .json({ error: "User not authenticated" });
+        return;
+      }
+
+      if (!postId) {
+        res
+          .status(HTTP_STATUS.BAD_REQUEST)
+          .json({ error: "Post ID is required" });
+        return;
+      }
+
+      const post = await Post.findById(postId);
+      if (!post) {
+        res.status(HTTP_STATUS.NOT_FOUND).json({ error: "Post not found" });
+        return;
+      }
+
+      const isBlocked = await PostsController.areUsersBlocked(
+        userId,
+        post.authorId.toString()
+      );
+      if (isBlocked) {
+        res
+          .status(HTTP_STATUS.FORBIDDEN)
+          .json({ error: "Cannot share this post" });
+        return;
+      }
+
+      post.shareCount = (post.shareCount || 0) + 1;
+      await post.save();
+
+      res.status(HTTP_STATUS.OK).json({ shareCount: post.shareCount });
+    } catch (error) {
+      console.error("Track post share error:", error);
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ error: "Failed to track share" });
     }
-
-    if (!postId) {
-      res.status(HTTP_STATUS.BAD_REQUEST);
-      throw new Error("Posts ID is required");
-    }
-
-    const posts = await Post.findById(postId);
-    if (!posts) {
-      res.status(HTTP_STATUS.NOT_FOUND);
-      throw new Error("Posts not found");
-    }
-
-    posts.shareCount = (posts.shareCount || 0) + 1;
-    await posts.save();
-
-    res.status(HTTP_STATUS.OK).json({ shareCount: posts.shareCount });
   }
 
   static async savePost(req: AuthRequest, res: Response) {
-    const { postId } = req.params;
-    const userId = req.user?.userId;
-
     try {
+      const { postId } = req.params;
+      const userId = req.user?.userId;
+
       if (!userId) {
         res
           .status(HTTP_STATUS.FORBIDDEN)
           .json({ error: "You are not authenticated" });
         return;
       }
+
       const post = await Post.findOne({ _id: postId });
       if (!post) {
-        console.log(postId)
         res.status(HTTP_STATUS.BAD_REQUEST).json({ error: "Post not found" });
         return;
       }
 
-      const user = await User.findById(userId);
+      const isBlocked = await PostsController.areUsersBlocked(
+        userId,
+        post.authorId.toString()
+      );
+      if (isBlocked) {
+        res
+          .status(HTTP_STATUS.FORBIDDEN)
+          .json({ error: "Cannot save this post" });
+        return;
+      }
 
+      const user = await User.findById(userId);
       if (!user) {
         res.status(HTTP_STATUS.NOT_FOUND).json({ error: "User not found" });
         return;
       }
 
-      const existingSave = user.savedPost.find(save => save.postId.toString() === post._id.toString());
-    
-    if (!existingSave) {
-      user.savedPost.push({
-        postId: post._id,
-        savedAt: new Date()
-      });
-      await user.save();
-    }
+      const existingSave = user.savedPost.find(
+        save => save.postId.toString() === post._id.toString()
+      );
+      
+      if (!existingSave) {
+        user.savedPost.push({
+          postId: post._id,
+          savedAt: new Date()
+        });
+        await user.save();
+      }
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
         post,
       });
-      return;
     } catch (error) {
+      console.error("Save post error:", error);
       res
         .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
         .json({ error: "Internal server error" });

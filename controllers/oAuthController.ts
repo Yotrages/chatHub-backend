@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { User } from "../Models/User";
 import { generateToken } from "../utils/generateToken";
+import { UserSettings } from "../Models/userSettings";
 
 const handleOAuthCallback = async (req: Request, res: Response) => {
   if (!req.authData) {
@@ -59,6 +60,11 @@ const handleOAuthCallback = async (req: Request, res: Response) => {
         providerId: profile.id,
         provider: provider,
       });
+
+      const userSettings = new UserSettings({
+            userId: newUser._id,
+          });
+          await userSettings.save();
 
       return res.redirect(`${redirectBase}/login?success=${encodeURIComponent("Account created successfully! Please log in.")}&registered=true`);
 

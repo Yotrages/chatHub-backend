@@ -10,6 +10,10 @@ import { UserSettings } from "../Models/userSettings";
 import dotenv from "dotenv";
 // import { containsBlockedKeywords, isSensitiveContent } from "../utils/constant";
 import { CallSession } from "../types";
+import {
+  canReceiveMessagesFrom,
+  shouldSendNotification,
+} from "../controllers/chatController";
 
 dotenv.config();
 
@@ -271,95 +275,89 @@ export class SocketHandler {
       });
     });
   }
-  // Handle user disconnect and cleanup active calls
+
   private async handleUserDisconnectCalls(userId: string) {
-  for (const [callId, callSession] of this.activeCalls.entries()) {
-    if (callSession.caller === userId || callSession.callee === userId) {
-      const otherUserId =
-        callSession.caller === userId
-          ? callSession.callee
-          : callSession.caller;
-      const otherSocket = this.onlineUsers.get(otherUserId);
+    for (const [callId, callSession] of this.activeCalls.entries()) {
+      if (callSession.caller === userId || callSession.callee === userId) {
+        const otherUserId =
+          callSession.caller === userId
+            ? callSession.callee
+            : callSession.caller;
+        const otherSocket = this.onlineUsers.get(otherUserId);
 
-      // Calculate call duration if call was connected
-      let duration = 0;
-      if (callSession.startTime && callSession.endTime === undefined) {
-        callSession.endTime = new Date();
-        duration = Math.floor(
-          (callSession.endTime.getTime() - callSession.startTime.getTime()) / 1000
+        let duration = 0;
+        if (callSession.startTime && callSession.endTime === undefined) {
+          callSession.endTime = new Date();
+          duration = Math.floor(
+            (callSession.endTime.getTime() - callSession.startTime.getTime()) /
+              1000
+          );
+        }
+
+        const wasInConversation = duration >= 30;
+        const wasConnecting = duration < 5 && duration > 0;
+        const neverConnected = !callSession.startTime;
+
+        let callStatus: string;
+        let callMessage: string;
+
+        if (wasInConversation) {
+          callStatus = "ended";
+          callMessage = `${
+            callSession.isVideo ? "Video" : "Voice"
+          } call ended - Connection lost (${this.formatDuration(duration)})`;
+        } else if (wasConnecting || neverConnected) {
+          callStatus = "failed";
+          callMessage = `${
+            callSession.isVideo ? "Video" : "Voice"
+          } call failed - Connection lost`;
+        } else {
+          callStatus = "ended";
+          callMessage = `${
+            callSession.isVideo ? "Video" : "Voice"
+          } call ended - Connection lost (${this.formatDuration(duration)})`;
+        }
+
+        if (otherSocket) {
+          this.io.to(otherSocket).emit("call_disconnected", {
+            from: userId,
+            callId: callId,
+            timestamp: new Date().toISOString(),
+            reason: "disconnect",
+            status: callStatus,
+            duration: duration,
+          });
+        }
+
+        callSession.status = "ended";
+
+        console.log(
+          `Call ${callId} ${callStatus} due to user ${userId} disconnect (duration: ${duration}s)`
         );
-      }
 
-      // Determine if this was a real conversation or failed connection
-      const wasInConversation = duration >= 30; // 30+ seconds = real call
-      const wasConnecting = duration < 5 && duration > 0; // Less than 5 secs = failed
-      const neverConnected = !callSession.startTime; // Never got to connected state
-
-      let callStatus: string;
-      let callMessage: string;
-
-      if (wasInConversation) {
-        callStatus = "ended";
-        callMessage = `${
-          callSession.isVideo ? "Video" : "Voice"
-        } call ended - Connection lost (${this.formatDuration(duration)})`;
-      } else if (wasConnecting || neverConnected) {
-        // Call failed during connection or never connected
-        callStatus = "failed";
-        callMessage = `${
-          callSession.isVideo ? "Video" : "Voice"
-        } call failed - Connection lost`;
-      } else {
-        // Between 5-30 seconds - brief call that got disconnected
-        callStatus = "ended";
-        callMessage = `${
-          callSession.isVideo ? "Video" : "Voice"
-        } call ended - Connection lost (${this.formatDuration(duration)})`;
-      }
-
-      // Notify the other user about disconnection
-      if (otherSocket) {
-        this.io.to(otherSocket).emit("call_disconnected", {
-          from: userId,
-          callId: callId,
-          timestamp: new Date().toISOString(),
-          reason: "disconnect",
-          status: callStatus,
-          duration: duration,
+        const conversation = await Conversation.findOne({
+          participants: {
+            $all: [callSession.caller, callSession.callee],
+            $size: 2,
+          },
+          type: "direct",
         });
+
+        if (conversation) {
+          await this.sendCallMessage(
+            conversation._id.toString(),
+            callMessage,
+            userId,
+            callStatus
+          );
+        }
+
+        setTimeout(() => {
+          this.activeCalls.delete(callId);
+        }, 2000);
       }
-
-      // Update call session
-      callSession.status = "ended";
-
-      console.log(
-        `Call ${callId} ${callStatus} due to user ${userId} disconnect (duration: ${duration}s)`
-      );
-
-      // Save call message to conversation
-      const conversation = await Conversation.findOne({
-        participants: {
-          $all: [callSession.caller, callSession.callee],
-          $size: 2,
-        },
-        type: "direct",
-      });
-
-      if (conversation) {
-        await this.sendCallMessage(
-          conversation._id.toString(),
-          callMessage,
-          userId,
-          callStatus
-        );
-      }
-
-      setTimeout(() => {
-        this.activeCalls.delete(callId);
-      }, 2000);
     }
   }
-}
 
   private startHeartbeatCleanup() {
     setInterval(async () => {
@@ -554,12 +552,42 @@ export class SocketHandler {
         replyTo,
         postId,
       } = data;
+      const senderSettings = await UserSettings.findOne({
+        userId: socket.userId,
+      });
+      if (senderSettings?.account.isDeactivated) {
+        socket.emit("message error", {
+          error: "Cannot send message: Account is deactivated",
+        });
+        return;
+      }
+
       const conversation = await Conversation.findById(conversationId);
       if (!conversation || !conversation.participants.includes(socket.userId)) {
         socket.emit("message_error", {
           error: "Unauthorized or conversation not found",
         });
         return;
+      }
+
+      if (conversation.type === "direct") {
+        const otherParticipant = conversation.participants.find(
+          (p) => p.toString() !== socket.userId
+        );
+
+        if (otherParticipant) {
+          const canMessage = await canReceiveMessagesFrom(
+            otherParticipant.toString(),
+            socket.userId
+          );
+
+          if (!canMessage.allowed) {
+            socket.emit("message_error", {
+              error: canMessage.reason || "Cannot send message to this user",
+            });
+            return;
+          }
+        }
       }
 
       if (replyTo) {
@@ -608,9 +636,31 @@ export class SocketHandler {
           await post.save();
         }
       }
+
       this.io.to(conversationId).emit("new_message", { message });
+      const sender = await User.findById(socket.userId).select(
+        "username avatar"
+      );
+
       for (const participantId of conversation.participants) {
         if (participantId.toString() !== socket.userId) {
+          const shouldNotify = await shouldSendNotification(
+            participantId.toString(),
+            "messageReceived"
+          );
+
+          if (shouldNotify) {
+            await NotificationService.createNotification({
+              recipientId: participantId.toString(),
+              senderId: socket.userId,
+              type: "message",
+              message: `${sender?.username || "Someone"} sent a new message`,
+              entityType: "message",
+              entityId: message._id,
+              actionUrl: `/chat/${conversationId}`,
+            });
+          }
+
           this.io.to(participantId.toString()).emit("unread_count_update", {
             conversationId,
             increment: true,
@@ -889,7 +939,6 @@ export class SocketHandler {
       user.lastSeen = online ? null : new Date();
       await user.save();
 
-      // Notify conversation participants
       const conversations = await Conversation.find({ participants: userId });
 
       for (const conv of conversations) {
@@ -911,7 +960,6 @@ export class SocketHandler {
               new mongoose.Types.ObjectId(participantId)
             )
           ) {
-            // Emit to conversation room
             this.io
               .to(conv._id.toString())
               .emit(online ? "user_online" : "user_offline", { userId });
@@ -946,7 +994,6 @@ export class SocketHandler {
         }
       }
 
-      // Emit global status change
       this.io.emit("user_status_change", { userId, online });
 
       console.log(
@@ -957,126 +1004,120 @@ export class SocketHandler {
     }
   }
 
-private handleOffer(socket: any, data: any) {
-  const { sdp, to, isVideo, callId } = data;
-  console.log(`📤 Received offer event from:`, socket.userId, `to:`, to);
-  console.log(`📤 Processing offer:`, {
-    from: socket.userId,
-    to,
-    isVideo,
-    callId,
-    hasRecipient: this.onlineUsers.has(to),
-  });
-
-  if (!this.onlineUsers.has(to)) {
-    console.log(`❌ Recipient ${to} not found`);
-    socket.emit("call_error", { 
-      error: "User not available",
-      callId: callId 
-    });
-    
-    // Clean up the call session
-    const callSession = this.activeCalls.get(callId);
-    if (callSession) {
-      this.activeCalls.delete(callId);
-    }
-    return;
-  }
-
-  let callSession = this.activeCalls.get(callId);
-
-  if (!callSession) {
-    console.log(
-      `⚠️ Call session not found, creating one for callId: ${callId}`
-    );
-    callSession = {
-      callId: callId,
-      caller: socket.userId,
-      callee: to,
-      isVideo: isVideo,
-      status: "calling",
-    };
-    this.activeCalls.set(callId, callSession);
-  }
-
-  const recipientSocketId = this.onlineUsers.get(to);
-  if (recipientSocketId) {
-    console.log(
-      `✅ Forwarding offer to ${to} at socket ${recipientSocketId}`
-    );
-    this.io.to(recipientSocketId).emit("offer", {
-      sdp,
+  private handleOffer(socket: any, data: any) {
+    const { sdp, to, isVideo, callId } = data;
+    console.log(`📤 Received offer event from:`, socket.userId, `to:`, to);
+    console.log(`📤 Processing offer:`, {
       from: socket.userId,
-      isVideo: callSession.isVideo,
-      callId: callSession.callId,
+      to,
+      isVideo,
+      callId,
+      hasRecipient: this.onlineUsers.has(to),
     });
-  }
-}
 
-
-private handleAnswer(socket: any, data: any) {
-  const { sdp, to, callId } = data;
-  console.log(`📤 Received answer event from:`, socket.userId, `to:`, to);
-  console.log(`📤 Processing answer:`, {
-    from: socket.userId,
-    to,
-    callId,
-    hasRecipient: this.onlineUsers.has(to),
-  });
-
-  // Check if recipient is still connected
-  if (!this.onlineUsers.has(to)) {
-    console.log(`❌ Recipient ${to} not found during answer`);
-    
-    // Find and clean up the call
-    const callSession = callId ? this.activeCalls.get(callId) : undefined;
-    if (callSession) {
-      callSession.status = "ended";
-      callSession.endTime = new Date();
-      
-      socket.emit("call_failed", {
-        callId: callSession.callId,
-        reason: "Other user disconnected",
-        timestamp: new Date().toISOString(),
+    if (!this.onlineUsers.has(to)) {
+      console.log(`❌ Recipient ${to} not found`);
+      socket.emit("call_error", {
+        error: "User not available",
+        callId: callId,
       });
 
-      this.activeCalls.delete(callId);
+      const callSession = this.activeCalls.get(callId);
+      if (callSession) {
+        this.activeCalls.delete(callId);
+      }
+      return;
     }
-    return;
-  }
 
-  const callSession = callId
-    ? this.activeCalls.get(callId)
-    : Array.from(this.activeCalls.values()).find(
-        (call) =>
-          (call.caller === to && call.callee === socket.userId) ||
-          (call.caller === socket.userId && call.callee === to)
-      );
+    let callSession = this.activeCalls.get(callId);
 
-  if (callSession) {
-    // Set to connected when answer is received
-    callSession.status = "connected";
-    if (!callSession.startTime) {
-      callSession.startTime = new Date();
+    if (!callSession) {
       console.log(
-        `✅ Call ${callSession.callId} connected at ${callSession.startTime}`
+        `⚠️ Call session not found, creating one for callId: ${callId}`
       );
+      callSession = {
+        callId: callId,
+        caller: socket.userId,
+        callee: to,
+        isVideo: isVideo,
+        status: "calling",
+      };
+      this.activeCalls.set(callId, callSession);
+    }
+
+    const recipientSocketId = this.onlineUsers.get(to);
+    if (recipientSocketId) {
+      console.log(
+        `✅ Forwarding offer to ${to} at socket ${recipientSocketId}`
+      );
+      this.io.to(recipientSocketId).emit("offer", {
+        sdp,
+        from: socket.userId,
+        isVideo: callSession.isVideo,
+        callId: callSession.callId,
+      });
     }
   }
 
-  const recipientSocketId = this.onlineUsers.get(to);
-  if (recipientSocketId) {
-    console.log(
-      `✅ Forwarding answer to ${to} at socket ${recipientSocketId}`
-    );
-    this.io.to(recipientSocketId).emit("answer", {
-      sdp,
+  private handleAnswer(socket: any, data: any) {
+    const { sdp, to, callId } = data;
+    console.log(`📤 Received answer event from:`, socket.userId, `to:`, to);
+    console.log(`📤 Processing answer:`, {
       from: socket.userId,
-      callId: callSession?.callId,
+      to,
+      callId,
+      hasRecipient: this.onlineUsers.has(to),
     });
-  }
-}
 
+    if (!this.onlineUsers.has(to)) {
+      console.log(`❌ Recipient ${to} not found during answer`);
+
+      const callSession = callId ? this.activeCalls.get(callId) : undefined;
+      if (callSession) {
+        callSession.status = "ended";
+        callSession.endTime = new Date();
+
+        socket.emit("call_failed", {
+          callId: callSession.callId,
+          reason: "Other user disconnected",
+          timestamp: new Date().toISOString(),
+        });
+
+        this.activeCalls.delete(callId);
+      }
+      return;
+    }
+
+    const callSession = callId
+      ? this.activeCalls.get(callId)
+      : Array.from(this.activeCalls.values()).find(
+          (call) =>
+            (call.caller === to && call.callee === socket.userId) ||
+            (call.caller === socket.userId && call.callee === to)
+        );
+
+    if (callSession) {
+      callSession.status = "connected";
+      if (!callSession.startTime) {
+        callSession.startTime = new Date();
+        console.log(
+          `✅ Call ${callSession.callId} connected at ${callSession.startTime}`
+        );
+      }
+    }
+
+    const recipientSocketId = this.onlineUsers.get(to);
+    if (recipientSocketId) {
+      console.log(
+        `✅ Forwarding answer to ${to} at socket ${recipientSocketId}`
+      );
+      this.io.to(recipientSocketId).emit("answer", {
+        sdp,
+        from: socket.userId,
+        callId: callSession?.callId,
+      });
+    }
+  }
 
   private handleIceCandidate(socket: any, data: any) {
     const { candidate, to, callId } = data;
@@ -1107,7 +1148,6 @@ private handleAnswer(socket: any, data: any) {
     const { to, isVideo, callId } = data;
     console.log(`📞 Received call_request from:`, socket.userId, `to:`, to);
 
-    // Check for existing active calls
     const existingCall = Array.from(this.activeCalls.values()).find(
       (call) =>
         ((call.caller === socket.userId && call.callee === to) ||
@@ -1124,7 +1164,6 @@ private handleAnswer(socket: any, data: any) {
       return;
     }
 
-    // FIXED: Create call session IMMEDIATELY (before checking online status)
     const callSession: CallSession = {
       callId: callId,
       caller: socket.userId,
@@ -1136,11 +1175,9 @@ private handleAnswer(socket: any, data: any) {
     this.activeCalls.set(callSession.callId, callSession);
     console.log(`✅ Call session created and stored: ${callSession.callId}`);
 
-    // Check if recipient is online
     const recipientSocketId = this.onlineUsers.get(to);
 
     if (recipientSocketId) {
-      // User is online - send call request immediately
       console.log(`📤 Emitting call_request to socket ${recipientSocketId}`);
       this.io.to(recipientSocketId).emit("call_request", {
         from: socket.userId,
@@ -1149,7 +1186,6 @@ private handleAnswer(socket: any, data: any) {
         callId: callSession.callId,
       });
     } else {
-      // User is offline - inform caller and monitor for reconnection
       console.log(`⚠️ User ${to} is offline, monitoring for reconnection...`);
       socket.emit("call_waiting", {
         message: "Calling...",
@@ -1157,18 +1193,15 @@ private handleAnswer(socket: any, data: any) {
       });
     }
 
-    // CRITICAL: Monitor for user coming online during 45-second window
     const checkInterval = setInterval(() => {
       const call = this.activeCalls.get(callSession.callId);
 
-      // Stop monitoring if call ended or answered
       if (!call || call.status !== "calling") {
         console.log(`⏹️ Stopping monitoring - status: ${call?.status}`);
         clearInterval(checkInterval);
         return;
       }
 
-      // Check if user came online
       const currentRecipientSocket = this.onlineUsers.get(to);
       if (
         currentRecipientSocket &&
@@ -1176,7 +1209,6 @@ private handleAnswer(socket: any, data: any) {
       ) {
         console.log(`✅ User ${to} came online! Sending call request`);
 
-        // Send call request to newly online user
         this.io.to(currentRecipientSocket).emit("call_request", {
           from: socket.userId,
           isVideo,
@@ -1184,7 +1216,6 @@ private handleAnswer(socket: any, data: any) {
           callId: callSession.callId,
         });
 
-        // Update caller
         socket.emit("call_waiting", {
           message: "Ringing...",
           status: "online",
@@ -1192,9 +1223,8 @@ private handleAnswer(socket: any, data: any) {
 
         clearInterval(checkInterval);
       }
-    }, 1000); // Check every second
+    }, 1000);
 
-    // 45-second timeout
     setTimeout(async () => {
       clearInterval(checkInterval);
 
@@ -1204,7 +1234,6 @@ private handleAnswer(socket: any, data: any) {
         call.status = "ended";
         call.endTime = new Date();
 
-        // Send timeout to both parties
         socket.emit("call_timeout", {
           callId: callSession.callId,
           timestamp: new Date().toISOString(),
@@ -1218,7 +1247,6 @@ private handleAnswer(socket: any, data: any) {
           });
         }
 
-        // Send missed call message
         const conversation = await Conversation.findOne({
           participants: {
             $all: [call.caller, call.callee],
@@ -1265,82 +1293,78 @@ private handleAnswer(socket: any, data: any) {
     }
   }
 
-private async handleCallAccept(socket: any, data: any) {
-  const { to, callId } = data;
-  console.log(
-    `✅ Received call_accept from:`,
-    socket.userId,
-    `to:`,
-    to,
-    `callId:`,
-    callId
-  );
+  private async handleCallAccept(socket: any, data: any) {
+    const { to, callId } = data;
+    console.log(
+      `✅ Received call_accept from:`,
+      socket.userId,
+      `to:`,
+      to,
+      `callId:`,
+      callId
+    );
 
-  let callSession = callId
-    ? this.activeCalls.get(callId)
-    : Array.from(this.activeCalls.values()).find(
-        (call) => call.caller === to && call.callee === socket.userId
-      );
+    let callSession = callId
+      ? this.activeCalls.get(callId)
+      : Array.from(this.activeCalls.values()).find(
+          (call) => call.caller === to && call.callee === socket.userId
+        );
 
-  if (!callSession) {
-    console.error(`❌ No active call found for callId: ${callId}`);
-    socket.emit("call_error", { error: "No active call found" });
-    return;
-  }
-
-  // Check if caller is still connected
-  if (!this.onlineUsers.has(to)) {
-    console.error(`❌ Caller ${to} disconnected before accept`);
-    
-    // Clean up the call
-    callSession.status = "ended";
-    callSession.endTime = new Date();
-    
-    socket.emit("call_failed", {
-      callId: callSession.callId,
-      reason: "Caller disconnected",
-      timestamp: new Date().toISOString(),
-    });
-
-    // Send failed call message
-    const conversation = await Conversation.findOne({
-      participants: {
-        $all: [callSession.caller, callSession.callee],
-        $size: 2,
-      },
-      type: "direct",
-    });
-
-    if (conversation) {
-      await this.sendCallMessage(
-        conversation._id.toString(),
-        `${callSession.isVideo ? "Video" : "Voice"} call failed - Connection lost`,
-        socket.userId,
-        "failed"
-      );
+    if (!callSession) {
+      console.error(`❌ No active call found for callId: ${callId}`);
+      socket.emit("call_error", { error: "No active call found" });
+      return;
     }
 
-    this.activeCalls.delete(callId);
-    return;
+    if (!this.onlineUsers.has(to)) {
+      console.error(`❌ Caller ${to} disconnected before accept`);
+
+      callSession.status = "ended";
+      callSession.endTime = new Date();
+
+      socket.emit("call_failed", {
+        callId: callSession.callId,
+        reason: "Caller disconnected",
+        timestamp: new Date().toISOString(),
+      });
+
+      const conversation = await Conversation.findOne({
+        participants: {
+          $all: [callSession.caller, callSession.callee],
+          $size: 2,
+        },
+        type: "direct",
+      });
+
+      if (conversation) {
+        await this.sendCallMessage(
+          conversation._id.toString(),
+          `${
+            callSession.isVideo ? "Video" : "Voice"
+          } call failed - Connection lost`,
+          socket.userId,
+          "failed"
+        );
+      }
+
+      this.activeCalls.delete(callId);
+      return;
+    }
+
+    callSession.status = "accepted";
+    callSession.acceptedTime = new Date();
+    console.log(`✅ Call ${callSession.callId} status updated to 'accepted'`);
+
+    const callerSocketId = this.onlineUsers.get(to)!;
+    console.log(
+      `📤 Emitting call_accept to caller ${to} at socket ${callerSocketId}`
+    );
+    this.io.to(callerSocketId).emit("call_accept", {
+      from: socket.userId,
+      timestamp: new Date().toISOString(),
+      callId: callSession.callId,
+    });
   }
-
-  // Update status to accepted and track acceptance time
-  callSession.status = "accepted";
-  callSession.acceptedTime = new Date(); // NEW: Track when user accepted
-  console.log(`✅ Call ${callSession.callId} status updated to 'accepted'`);
-
-  // Notify the caller
-  const callerSocketId = this.onlineUsers.get(to)!;
-  console.log(
-    `📤 Emitting call_accept to caller ${to} at socket ${callerSocketId}`
-  );
-  this.io.to(callerSocketId).emit("call_accept", {
-    from: socket.userId,
-    timestamp: new Date().toISOString(),
-    callId: callSession.callId,
-  });
-}
-
 
   private async handleCallDecline(socket: any, data: any) {
     const { to, callId } = data;
@@ -1358,7 +1382,6 @@ private async handleCallAccept(socket: any, data: any) {
       callSession.status = "ended";
       callSession.endTime = new Date();
 
-      // Send "call declined" message (user manually declined)
       const conversation = await Conversation.findOne({
         participants: {
           $all: [callSession.caller, callSession.callee],
@@ -1480,7 +1503,7 @@ private async handleCallAccept(socket: any, data: any) {
           conversation._id.toString(),
           `Missed ${callSession.isVideo ? "video" : "voice"} call`,
           callSession.caller,
-          "missed" 
+          "missed"
         );
       }
 

@@ -75,7 +75,6 @@ export const validate = (schema: Joi.ObjectSchema) => {
 };
 
 
-// Per-user rate limiter using IP + user ID if authenticated
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
   max: 500, 

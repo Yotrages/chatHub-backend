@@ -15,7 +15,8 @@ export class storiesController {
 
       const stories = await Stories.find()
         .populate("authorId", "username avatar")
-        .populate("reactions.userId", "username avatar") 
+        .populate("reactions.userId", "username avatar")
+        .populate("viewers.viewer", "username avatar") 
         .sort({ createdAt: -1 }) 
         .skip(skip)
         .limit(limit);
@@ -423,7 +424,7 @@ export class storiesController {
       const date = new Date(Date.now())
       story.viewers.push({viewer: userObjectId, viewedAt: date});
       await story.save();
-      await story.populate("viewers", "username avatar");
+      await story.populate("viewers.viewer", "username avatar");
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
