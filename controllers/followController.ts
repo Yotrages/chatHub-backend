@@ -47,12 +47,6 @@ export class FollowController {
       return { allowed: false, reason: "This account is deactivated" };
     }
 
-    const profileVisibility = profileSettings.privacy.profileVisibility;
-
-    if (profileVisibility === 'public') {
-      return { allowed: true };
-    }
-
     if (!viewerId) {
       return { allowed: false, reason: "This profile is private" };
     }
@@ -60,28 +54,6 @@ export class FollowController {
     const isBlocked = await this.areUsersBlocked(viewerId, profileUserId);
     if (isBlocked) {
       return { allowed: false, reason: "This profile is not accessible" };
-    }
-
-    if (profileVisibility === 'private' && viewerId !== profileUserId) {
-      return { allowed: false, reason: "This profile is private" };
-    }
-
-    if (profileVisibility === 'friends' && viewerId !== profileUserId) {
-      const [viewer, profileUser] = await Promise.all([
-        User.findById(viewerId).select('following'),
-        User.findById(profileUserId).select('following')
-      ]);
-
-      const viewerIdObj = new mongoose.Types.ObjectId(viewerId);
-      const profileUserIdObj = new mongoose.Types.ObjectId(profileUserId);
-
-      const areMutualFollowers =
-        viewer?.following.some((id) => id.equals(profileUserIdObj)) &&
-        profileUser?.following.some((id) => id.equals(viewerIdObj));
-
-      if (!areMutualFollowers) {
-        return { allowed: false, reason: "This profile is only visible to friends" };
-      }
     }
 
     return { allowed: true };
