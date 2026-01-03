@@ -49,7 +49,6 @@ const userSchema = new Schema<IUser>(
     ],
     providerId: {
       type: String,
-      sparse: true,
     },
     avatar: {
       type: String,
