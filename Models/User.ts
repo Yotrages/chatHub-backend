@@ -124,7 +124,10 @@ userSchema.index(
   { provider: 1, providerId: 1 },
   {
     unique: true,
-    sparse: true,
+    partialFilterExpression: { 
+      provider: { $ne: null },
+      providerId: { $ne: null }
+    }
   }
 );
 userSchema.index({ "savedPost.savedAt": 1 });
