@@ -1,0 +1,40 @@
+config:
+  target: "wss://YOUR_RENDER_URL_HERE"
+  phases:
+    - name: "Warm up"
+      duration: 30
+      arrivalRate: 10
+      rampTo: 50
+    - name: "Ramp to 500"
+      duration: 120
+      arrivalRate: 50
+      rampTo: 500
+    - name: "Ramp to 1000"
+      duration: 180
+      arrivalRate: 500
+      rampTo: 1000
+    - name: "Sustain 1000"
+      duration: 120
+      arrivalRate: 1000
+  ws:
+    subprotocols: ["socket.io"]
+  processor: "./load-test-processor.js"
+
+scenarios:
+  - name: "WebSocket connection with messaging"
+    weight: 100
+    flow:
+      - connect:
+          url: "/socket.io/?transport=websocket&EIO=4"
+      - think: 2
+      - send:
+          data: '40{"token":"{{ jwt_token }}"}'
+      - think: 3
+      - loop:
+          - think: 5
+          - send:
+              data: '42["send_message",{"conversationId":"test-conv","content":"Load test message","messageType":"text"}]'
+          - think: 2
+        count: 20
+      - think: 5
+      - close

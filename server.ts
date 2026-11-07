@@ -5,6 +5,8 @@ import { createServer } from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
 import { Server } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { Redis } from 'ioredis';
 import authRoutes from './routes/auth.js';
 import chatRoutes from './routes/chat.js';
 import postsRoutes from './routes/post.js';
@@ -89,7 +91,80 @@ io.engine.on("initial_headers", (headers, request) => {
   headers["X-Custom-Header"] = "socket-io";
 });
 
-app.set('io', io); 
+// Redis adapter for horizontal scaling (optional - works without Redis)
+const redisUrl = process.env.REDIS_URL;
+let pubClient: Redis | null = null;
+let subClient: Redis | null = null;
+
+if (redisUrl) {
+  console.log('🔴 REDIS_URL detected, setting up Socket.io Redis adapter...');
+
+  // Use URL directly - ioredis handles parsing and TLS automatically
+  // For Redis Cloud with rediss://, it will use TLS with proper cert verification
+  const redisOptions = {
+    maxRetriesPerRequest: 3,
+    retryStrategy: (times: number) => {
+      if (times > 3) {
+        console.error('❌ Redis connection failed after 3 retries, running without Redis adapter');
+        return null;
+      }
+      return Math.min(times * 200, 2000);
+    },
+    lazyConnect: true,
+  };
+
+  try {
+    pubClient = new Redis(redisUrl, redisOptions);
+    subClient = pubClient.duplicate();
+
+    pubClient.on('error', (err) => {
+      console.error('❌ Redis pub client error:', err.message);
+    });
+
+    subClient.on('error', (err) => {
+      console.error('❌ Redis sub client error:', err.message);
+    });
+
+    pubClient.on('connect', () => {
+      console.log('✅ Redis pub client connected');
+    });
+
+    subClient.on('connect', () => {
+      console.log('✅ Redis sub client connected');
+    });
+
+    pubClient.on('ready', () => {
+      console.log('✅ Redis pub client ready');
+    });
+
+    subClient.on('ready', () => {
+      console.log('✅ Redis sub client ready');
+    });
+
+    // Use Promise-based approach instead of top-level await
+    pubClient.connect()
+      .then(() => subClient!.connect())
+      .then(() => {
+        io.adapter(createAdapter(pubClient!, subClient!));
+        console.log('✅ Socket.io Redis adapter configured successfully');
+        console.log('📡 Cross-instance messaging enabled');
+      })
+      .catch((err) => {
+        console.error('❌ Failed to setup Redis adapter:', err.message);
+        console.log('⚠️ Running without Redis adapter (single-instance mode)');
+        pubClient = null;
+        subClient = null;
+      });
+  } catch (err) {
+    console.error('❌ Failed to create Redis clients:', err);
+    console.log('⚠️ Running without Redis adapter (single-instance mode)');
+  }
+} else {
+  console.log('ℹ️ No REDIS_URL provided, running in single-instance mode');
+  console.log('💡 Set REDIS_URL to enable cross-instance messaging');
+}
+
+app.set('io', io);
 new SocketHandler(io);
 
 app.use((req, res, next) => {
@@ -203,18 +278,30 @@ app.use((err: Error, req: express.Request, res: express.Response, next: express.
 });
 
 // Graceful shutdown handlers
-const shutdown = () => {
+const shutdown = async () => {
   console.log('Shutting down gracefully...');
 
-    io.sockets.sockets.forEach(socket => {
+  io.sockets.sockets.forEach(socket => {
     socket.disconnect(true);
   });
-  
+
+  // Close Redis connections if they exist
+  // Note: pubClient and subClient are declared in the Redis setup block above
+  // They are accessible here due to function scope
+  if (typeof pubClient !== 'undefined' && pubClient) {
+    console.log('Closing Redis pub client...');
+    await pubClient.quit();
+  }
+  if (typeof subClient !== 'undefined' && subClient) {
+    console.log('Closing Redis sub client...');
+    await subClient.quit();
+  }
+
   server.close(() => {
     console.log('Server closed');
     process.exit(0);
   });
-  
+
   setTimeout(() => {
     console.error('Forcing shutdown');
     process.exit(1);
