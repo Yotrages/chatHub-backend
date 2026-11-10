@@ -1,0 +1,756 @@
+{
+  "aggregate": {
+    "counters": {
+      "vusers.created_by_name.WebSocket connection with messaging": 288900,
+      "vusers.created": 288900,
+      "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 288900,
+      "vusers.failed": 288900
+    },
+    "rates": {},
+    "firstCounterAt": 1794048654174,
+    "lastCounterAt": 1794049105784,
+    "firstMetricAt": 1794048654174,
+    "lastMetricAt": 1794049105784,
+    "period": 1794049100000,
+    "summaries": {},
+    "histograms": {}
+  },
+  "intermediate": [
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 81,
+        "vusers.created": 81,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 81,
+        "vusers.failed": 81
+      },
+      "rates": {},
+      "firstCounterAt": 1794048654174,
+      "lastCounterAt": 1794048659998,
+      "firstMetricAt": 1794048654174,
+      "lastMetricAt": 1794048659998,
+      "period": "1794048650000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 245,
+        "vusers.created": 245,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 245,
+        "vusers.failed": 245
+      },
+      "rates": {},
+      "firstCounterAt": 1794048660046,
+      "lastCounterAt": 1794048669979,
+      "firstMetricAt": 1794048660046,
+      "lastMetricAt": 1794048669979,
+      "period": "1794048660000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 382,
+        "vusers.created": 382,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 382,
+        "vusers.failed": 382
+      },
+      "rates": {},
+      "firstCounterAt": 1794048670010,
+      "lastCounterAt": 1794048679994,
+      "firstMetricAt": 1794048670010,
+      "lastMetricAt": 1794048679994,
+      "period": "1794048670000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 545,
+        "vusers.created": 545,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 545,
+        "vusers.failed": 545
+      },
+      "rates": {},
+      "firstCounterAt": 1794048680023,
+      "lastCounterAt": 1794048689963,
+      "firstMetricAt": 1794048680023,
+      "lastMetricAt": 1794048689963,
+      "period": "1794048680000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 891,
+        "vusers.created": 891,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 891,
+        "vusers.failed": 891
+      },
+      "rates": {},
+      "firstCounterAt": 1794048690007,
+      "lastCounterAt": 1794048699993,
+      "firstMetricAt": 1794048690007,
+      "lastMetricAt": 1794048699993,
+      "period": "1794048690000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 1268,
+        "vusers.created": 1268,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 1268,
+        "vusers.failed": 1268
+      },
+      "rates": {},
+      "firstCounterAt": 1794048700008,
+      "lastCounterAt": 1794048709999,
+      "firstMetricAt": 1794048700008,
+      "lastMetricAt": 1794048709999,
+      "period": "1794048700000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 1632,
+        "vusers.created": 1632,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 1632,
+        "vusers.failed": 1632
+      },
+      "rates": {},
+      "firstCounterAt": 1794048710012,
+      "lastCounterAt": 1794048719989,
+      "firstMetricAt": 1794048710012,
+      "lastMetricAt": 1794048719989,
+      "period": "1794048710000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 2013,
+        "vusers.created": 2013,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 2013,
+        "vusers.failed": 2013
+      },
+      "rates": {},
+      "firstCounterAt": 1794048720003,
+      "lastCounterAt": 1794048729993,
+      "firstMetricAt": 1794048720003,
+      "lastMetricAt": 1794048729993,
+      "period": "1794048720000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 2386,
+        "vusers.created": 2386,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 2386,
+        "vusers.failed": 2386
+      },
+      "rates": {},
+      "firstCounterAt": 1794048730008,
+      "lastCounterAt": 1794048739994,
+      "firstMetricAt": 1794048730008,
+      "lastMetricAt": 1794048739994,
+      "period": "1794048730000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 2764,
+        "vusers.created": 2764,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 2762,
+        "vusers.failed": 2762
+      },
+      "rates": {},
+      "firstCounterAt": 1794048740008,
+      "lastCounterAt": 1794048749999,
+      "firstMetricAt": 1794048740008,
+      "lastMetricAt": 1794048749999,
+      "period": "1794048740000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 3136,
+        "vusers.created": 3136,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 3138,
+        "vusers.failed": 3138
+      },
+      "rates": {},
+      "firstCounterAt": 1794048750000,
+      "lastCounterAt": 1794048759999,
+      "firstMetricAt": 1794048750000,
+      "lastMetricAt": 1794048759999,
+      "period": "1794048750000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 3509,
+        "vusers.created": 3509,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 3509,
+        "vusers.failed": 3509
+      },
+      "rates": {},
+      "firstCounterAt": 1794048760015,
+      "lastCounterAt": 1794048769993,
+      "firstMetricAt": 1794048760015,
+      "lastMetricAt": 1794048769993,
+      "period": "1794048760000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 3885,
+        "vusers.created": 3885,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 3885,
+        "vusers.failed": 3885
+      },
+      "rates": {},
+      "firstCounterAt": 1794048770005,
+      "lastCounterAt": 1794048779992,
+      "firstMetricAt": 1794048770005,
+      "lastMetricAt": 1794048779992,
+      "period": "1794048770000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 4251,
+        "vusers.created": 4251,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 4251,
+        "vusers.failed": 4251
+      },
+      "rates": {},
+      "firstCounterAt": 1794048780004,
+      "lastCounterAt": 1794048789991,
+      "firstMetricAt": 1794048780004,
+      "lastMetricAt": 1794048789991,
+      "period": "1794048780000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 4633,
+        "vusers.created": 4633,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 4631,
+        "vusers.failed": 4631
+      },
+      "rates": {},
+      "firstCounterAt": 1794048790005,
+      "lastCounterAt": 1794048799999,
+      "firstMetricAt": 1794048790005,
+      "lastMetricAt": 1794048799999,
+      "period": "1794048790000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 4975,
+        "vusers.created": 4975,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 4977,
+        "vusers.failed": 4977
+      },
+      "rates": {},
+      "firstCounterAt": 1794048800000,
+      "lastCounterAt": 1794048809988,
+      "firstMetricAt": 1794048800000,
+      "lastMetricAt": 1794048809988,
+      "period": "1794048800000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 5258,
+        "vusers.created": 5258,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 5257,
+        "vusers.failed": 5257
+      },
+      "rates": {},
+      "firstCounterAt": 1794048810002,
+      "lastCounterAt": 1794048819999,
+      "firstMetricAt": 1794048810002,
+      "lastMetricAt": 1794048819999,
+      "period": "1794048810000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 5503,
+        "vusers.created": 5503,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 5504,
+        "vusers.failed": 5504
+      },
+      "rates": {},
+      "firstCounterAt": 1794048820000,
+      "lastCounterAt": 1794048829994,
+      "firstMetricAt": 1794048820000,
+      "lastMetricAt": 1794048829994,
+      "period": "1794048820000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 5798,
+        "vusers.created": 5798,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 5798,
+        "vusers.failed": 5798
+      },
+      "rates": {},
+      "firstCounterAt": 1794048830007,
+      "lastCounterAt": 1794048839990,
+      "firstMetricAt": 1794048830007,
+      "lastMetricAt": 1794048839990,
+      "period": "1794048830000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 6074,
+        "vusers.created": 6074,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 6074,
+        "vusers.failed": 6074
+      },
+      "rates": {},
+      "firstCounterAt": 1794048840005,
+      "lastCounterAt": 1794048849986,
+      "firstMetricAt": 1794048840005,
+      "lastMetricAt": 1794048849986,
+      "period": "1794048840000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 6359,
+        "vusers.created": 6359,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 6359,
+        "vusers.failed": 6359
+      },
+      "rates": {},
+      "firstCounterAt": 1794048850001,
+      "lastCounterAt": 1794048859988,
+      "firstMetricAt": 1794048850001,
+      "lastMetricAt": 1794048859988,
+      "period": "1794048850000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 6620,
+        "vusers.created": 6620,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 6620,
+        "vusers.failed": 6620
+      },
+      "rates": {},
+      "firstCounterAt": 1794048860001,
+      "lastCounterAt": 1794048869998,
+      "firstMetricAt": 1794048860001,
+      "lastMetricAt": 1794048869998,
+      "period": "1794048860000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 6929,
+        "vusers.created": 6929,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 6929,
+        "vusers.failed": 6929
+      },
+      "rates": {},
+      "firstCounterAt": 1794048870010,
+      "lastCounterAt": 1794048879997,
+      "firstMetricAt": 1794048870010,
+      "lastMetricAt": 1794048879997,
+      "period": "1794048870000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 7172,
+        "vusers.created": 7172,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 7172,
+        "vusers.failed": 7172
+      },
+      "rates": {},
+      "firstCounterAt": 1794048880012,
+      "lastCounterAt": 1794048889999,
+      "firstMetricAt": 1794048880012,
+      "lastMetricAt": 1794048889999,
+      "period": "1794048880000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 7428,
+        "vusers.created": 7428,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 7428,
+        "vusers.failed": 7428
+      },
+      "rates": {},
+      "firstCounterAt": 1794048890012,
+      "lastCounterAt": 1794048899992,
+      "firstMetricAt": 1794048890012,
+      "lastMetricAt": 1794048899992,
+      "period": "1794048890000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 7790,
+        "vusers.created": 7790,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 7789,
+        "vusers.failed": 7789
+      },
+      "rates": {},
+      "firstCounterAt": 1794048900006,
+      "lastCounterAt": 1794048909999,
+      "firstMetricAt": 1794048900006,
+      "lastMetricAt": 1794048909999,
+      "period": "1794048900000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 7983,
+        "vusers.created": 7983,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 7984,
+        "vusers.failed": 7984
+      },
+      "rates": {},
+      "firstCounterAt": 1794048910000,
+      "lastCounterAt": 1794048919995,
+      "firstMetricAt": 1794048910000,
+      "lastMetricAt": 1794048919995,
+      "period": "1794048910000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 8243,
+        "vusers.created": 8243,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 8243,
+        "vusers.failed": 8243
+      },
+      "rates": {},
+      "firstCounterAt": 1794048920008,
+      "lastCounterAt": 1794048929988,
+      "firstMetricAt": 1794048920008,
+      "lastMetricAt": 1794048929988,
+      "period": "1794048920000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 8538,
+        "vusers.created": 8538,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 8538,
+        "vusers.failed": 8538
+      },
+      "rates": {},
+      "firstCounterAt": 1794048930001,
+      "lastCounterAt": 1794048939990,
+      "firstMetricAt": 1794048930001,
+      "lastMetricAt": 1794048939990,
+      "period": "1794048930000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 8863,
+        "vusers.created": 8863,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 8856,
+        "vusers.failed": 8856
+      },
+      "rates": {},
+      "firstCounterAt": 1794048940004,
+      "lastCounterAt": 1794048949999,
+      "firstMetricAt": 1794048940004,
+      "lastMetricAt": 1794048949999,
+      "period": "1794048940000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 9074,
+        "vusers.failed": 9074,
+        "vusers.created_by_name.WebSocket connection with messaging": 9067,
+        "vusers.created": 9067
+      },
+      "rates": {},
+      "firstCounterAt": 1794048950000,
+      "lastCounterAt": 1794048959990,
+      "firstMetricAt": 1794048950000,
+      "lastMetricAt": 1794048959990,
+      "period": "1794048950000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 9377,
+        "vusers.created": 9377,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 9377,
+        "vusers.failed": 9377
+      },
+      "rates": {},
+      "firstCounterAt": 1794048960003,
+      "lastCounterAt": 1794048969987,
+      "firstMetricAt": 1794048960003,
+      "lastMetricAt": 1794048969987,
+      "period": "1794048960000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 9674,
+        "vusers.created": 9674,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 9668,
+        "vusers.failed": 9668
+      },
+      "rates": {},
+      "firstCounterAt": 1794048970002,
+      "lastCounterAt": 1794048979999,
+      "firstMetricAt": 1794048970002,
+      "lastMetricAt": 1794048979999,
+      "period": "1794048970000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 9957,
+        "vusers.failed": 9957,
+        "vusers.created_by_name.WebSocket connection with messaging": 9951,
+        "vusers.created": 9951
+      },
+      "rates": {},
+      "firstCounterAt": 1794048980000,
+      "lastCounterAt": 1794048989999,
+      "firstMetricAt": 1794048980000,
+      "lastMetricAt": 1794048989999,
+      "period": "1794048980000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 9998,
+        "vusers.created": 9998,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 9998,
+        "vusers.failed": 9998
+      },
+      "rates": {},
+      "firstCounterAt": 1794048990003,
+      "lastCounterAt": 1794048999999,
+      "firstMetricAt": 1794048990003,
+      "lastMetricAt": 1794048999999,
+      "period": "1794048990000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 10002,
+        "vusers.created": 10002,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 10002,
+        "vusers.failed": 10002
+      },
+      "rates": {},
+      "firstCounterAt": 1794049000000,
+      "lastCounterAt": 1794049009999,
+      "firstMetricAt": 1794049000000,
+      "lastMetricAt": 1794049009999,
+      "period": "1794049000000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 9999,
+        "vusers.created": 9999,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 9999,
+        "vusers.failed": 9999
+      },
+      "rates": {},
+      "firstCounterAt": 1794049010002,
+      "lastCounterAt": 1794049019999,
+      "firstMetricAt": 1794049010002,
+      "lastMetricAt": 1794049019999,
+      "period": "1794049010000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 10001,
+        "vusers.created": 10001,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 10001,
+        "vusers.failed": 10001
+      },
+      "rates": {},
+      "firstCounterAt": 1794049020002,
+      "lastCounterAt": 1794049029999,
+      "firstMetricAt": 1794049020002,
+      "lastMetricAt": 1794049029999,
+      "period": "1794049020000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 10000,
+        "vusers.created": 10000,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 10000,
+        "vusers.failed": 10000
+      },
+      "rates": {},
+      "firstCounterAt": 1794049030002,
+      "lastCounterAt": 1794049039999,
+      "firstMetricAt": 1794049030002,
+      "lastMetricAt": 1794049039999,
+      "period": "1794049030000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 10000,
+        "vusers.created": 10000,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 10000,
+        "vusers.failed": 10000
+      },
+      "rates": {},
+      "firstCounterAt": 1794049040002,
+      "lastCounterAt": 1794049049999,
+      "firstMetricAt": 1794049040002,
+      "lastMetricAt": 1794049049999,
+      "period": "1794049040000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 10000,
+        "vusers.created": 10000,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 9999,
+        "vusers.failed": 9999
+      },
+      "rates": {},
+      "firstCounterAt": 1794049050002,
+      "lastCounterAt": 1794049059999,
+      "firstMetricAt": 1794049050002,
+      "lastMetricAt": 1794049059999,
+      "period": "1794049050000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 10000,
+        "vusers.created": 10000,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 10001,
+        "vusers.failed": 10001
+      },
+      "rates": {},
+      "firstCounterAt": 1794049060000,
+      "lastCounterAt": 1794049069999,
+      "firstMetricAt": 1794049060000,
+      "lastMetricAt": 1794049069999,
+      "period": "1794049060000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 10000,
+        "vusers.created": 10000,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 10000,
+        "vusers.failed": 10000
+      },
+      "rates": {},
+      "firstCounterAt": 1794049070003,
+      "lastCounterAt": 1794049079999,
+      "firstMetricAt": 1794049070003,
+      "lastMetricAt": 1794049079999,
+      "period": "1794049070000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 10000,
+        "vusers.created": 10000,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 10000,
+        "vusers.failed": 10000
+      },
+      "rates": {},
+      "firstCounterAt": 1794049080003,
+      "lastCounterAt": 1794049089999,
+      "firstMetricAt": 1794049080003,
+      "lastMetricAt": 1794049089999,
+      "period": "1794049080000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 10000,
+        "vusers.created": 10000,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 10000,
+        "vusers.failed": 10000
+      },
+      "rates": {},
+      "firstCounterAt": 1794049090003,
+      "lastCounterAt": 1794049099999,
+      "firstMetricAt": 1794049090003,
+      "lastMetricAt": 1794049099999,
+      "period": "1794049090000",
+      "summaries": {},
+      "histograms": {}
+    },
+    {
+      "counters": {
+        "vusers.created_by_name.WebSocket connection with messaging": 5677,
+        "vusers.created": 5677,
+        "errors.Invalid URL - wss://chathub-backend-cq3x.onrender.com/socket.io/?transport=websocket&EIO=4": 5677,
+        "vusers.failed": 5677
+      },
+      "rates": {},
+      "firstCounterAt": 1794049100002,
+      "lastCounterAt": 1794049105784,
+      "firstMetricAt": 1794049100002,
+      "lastMetricAt": 1794049105784,
+      "period": "1794049100000",
+      "summaries": {},
+      "histograms": {}
+    }
+  ]
+}

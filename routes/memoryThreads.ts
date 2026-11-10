@@ -1,8 +1,9 @@
 import express from 'express';
-import { Request, Response} from 'express'
-import MemoryThread from '../Models/MemoryThreads';
-import { authenticateToken } from '../middleware/authMiddleware'; 
-import { Comment, Post } from '../Models/Post';
+import { Request, Response } from 'express';
+import mongoose from 'mongoose';
+import MemoryThread from '../Models/MemoryThreads.js';
+import { authenticateToken } from '../middleware/authMiddleware.js'; 
+import { Comment, Post } from '../Models/Post.js';
 
 const router = express.Router();
 
@@ -26,13 +27,16 @@ const calculateRelevanceScore = (
 };
 
 const extractKeywords = (text: string): string[] => {
-  const stopWords = new Set(['the', 'is', 'at', 'which', 'on', 'a', 'an', 'and', 'or', 'but', 'in', 'with', 'to', 'for', 'of', 'as', 'by']);
+  const stopWords = new Set([
+    'the', 'is', 'at', 'which', 'on', 'a', 'an', 'and', 'or', 'but', 'in', 'with', 'to', 'for', 'of', 'as', 'by',
+    'this', 'that', 'from', 'they', 'will', 'what', 'when', 'your', 'about', 'have', 'there', 'were', 'been', 'then', 'than', 'some', 'just', 'more'
+  ]);
   
   return text
     .toLowerCase()
     .replace(/[^\w\s]/g, '')
     .split(/\s+/)
-    .filter(word => word.length > 3 && !stopWords.has(word))
+    .filter(word => word.length > 2 && !stopWords.has(word))
     .slice(0, 10);
 };
 
@@ -122,15 +126,19 @@ router.post('/memory-threads', authenticateToken, async (req: Request, res: Resp
       return;
     }
 
+    const userObjId = mongoose.Types.ObjectId.isValid(userId) ? new mongoose.Types.ObjectId(userId) : userId;
+    const participantObjId = mongoose.Types.ObjectId.isValid(participantId) ? new mongoose.Types.ObjectId(participantId) : participantId;
+    const lowerKeywords = keywords.map((k: string) => k.toLowerCase().trim()).filter(Boolean);
+
     const threads = await MemoryThread.find({
-      participants: { $all: [userId, participantId] },
-      keywords: { $in: keywords }
+      participants: { $all: [userObjId, participantObjId] },
+      keywords: { $in: lowerKeywords }
     }).sort({ lastActivity: -1 });
 
     const updatedThreads = threads.map(thread => {
       const score = calculateRelevanceScore(
         thread.keywords,
-        keywords,
+        lowerKeywords,
         thread.lastActivity,
         thread.relatedPosts.length
       );
@@ -152,15 +160,23 @@ router.post('/memory-threads', authenticateToken, async (req: Request, res: Resp
 router.post('/memory-threads/process', authenticateToken, async (req: Request, res: Response) => {
   try {
     const { userId, content, participants, postId } = req.body;
-    const keywords = extractKeywords(content);
-    
-    if (keywords.length === 0 || participants.length !== 2) {
+    if (!content || !participants || participants.length !== 2) {
       res.json({ success: true });
       return;
     }
 
+    const keywords = extractKeywords(content);
+    if (keywords.length === 0) {
+      res.json({ success: true });
+      return;
+    }
+
+    const participantObjIds = participants.map((p: string) =>
+      mongoose.Types.ObjectId.isValid(p) ? new mongoose.Types.ObjectId(p) : p
+    );
+
     const existingThread = await MemoryThread.findOne({
-      participants: { $all: participants },
+      participants: { $all: participantObjIds },
       keywords: { $in: keywords }
     });
 
@@ -170,11 +186,11 @@ router.post('/memory-threads/process', authenticateToken, async (req: Request, r
           relatedPosts: postId,
           keywords: { $each: keywords }
         },
-        lastActivity: new Date()
+        $set: { lastActivity: new Date() }
       });
     } else {
       await MemoryThread.create({
-        participants,
+        participants: participantObjIds,
         keywords,
         relatedPosts: [postId],
         context: content.substring(0, 200) + (content.length > 200 ? '...' : ''),

@@ -48,6 +48,6 @@ router.get("/viewers/:storyId", authenticateToken, storiesController.getStoryVie
 router.post("/viewers/:storyId", authenticateToken, storiesController.setStoryViewers);
 router.get("/user", authenticateToken, storiesController.getUserStories);
 router.get("/trending", authenticateToken, storiesController.getTrendingStories);
+router.get("/:storyId", storiesController.getSingleStory);
 
-
-export default router
+export default router;

@@ -1,14 +1,19 @@
 // Load test processor - runs before each virtual user
-// Replace YOUR_JWT_TOKEN_HERE with actual token from deployed app
+// Set LOAD_TEST_JWT_TOKEN environment variable before running
 
-module.exports = {
+export default {
   beforeScenario: async (context, events, done) => {
-    // Get JWT token from your deployed app:
-    // 1. Login at https://your-render-url.onrender.com
-    // 2. DevTools → Application → Cookies → auth-token
-    // 3. Paste token below
-    context.vars.jwt_token = "YOUR_JWT_TOKEN_HERE";
+    // Get JWT token from environment variable
+    // Set before running:
+    //   $env:LOAD_TEST_JWT_TOKEN="your_token_here"  (PowerShell)
+    //   export LOAD_TEST_JWT_TOKEN="your_token_here"  (Bash)
+    const token = process.env.LOAD_TEST_JWT_TOKEN;
 
+    if (!token) {
+      throw new Error("LOAD_TEST_JWT_TOKEN environment variable not set. Get token from deployed app: login → DevTools → Cookies → auth-token");
+    }
+
+    context.vars.jwt_token = token;
     return done();
   }
 };

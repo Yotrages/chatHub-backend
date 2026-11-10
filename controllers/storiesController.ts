@@ -59,6 +59,36 @@ export class storiesController {
     }
   }
 
+  static async getSingleStory(req: Request, res: Response) {
+    try {
+      const { storyId } = req.params;
+      const story = await Stories.findById(storyId)
+        .populate("authorId", "username avatar")
+        .populate("reactions.userId", "username avatar")
+        .populate("viewers.viewer", "username avatar");
+
+      if (!story) {
+        res.status(HTTP_STATUS.NOT_FOUND).json({
+          success: false,
+          error: "Story not found",
+        });
+        return;
+      }
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: story,
+      });
+    } catch (err: any) {
+      console.error("Error fetching single story:", err);
+      res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({
+        success: false,
+        error: "Server Error",
+        message: "Failed to fetch single story",
+      });
+    }
+  }
+
   static async createStories(req: AuthRequest, res: Response) {
     try {
       const userId = req.user?.userId;

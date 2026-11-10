@@ -1,5 +1,5 @@
 config:
-  target: "wss://YOUR_RENDER_URL_HERE"
+  target: "https://chathub-backend-cq3x.onrender.com"
   phases:
     - name: "Warm up"
       duration: 30
@@ -16,25 +16,35 @@ config:
     - name: "Sustain 1000"
       duration: 120
       arrivalRate: 1000
-  ws:
-    subprotocols: ["socket.io"]
+  engines:
+    socketio-v3: {}
   processor: "./load-test-processor.js"
 
 scenarios:
-  - name: "WebSocket connection with messaging"
+  - name: "Socket.io connection with messaging"
+    engine: "socketio-v3"
     weight: 100
     flow:
       - connect:
-          url: "/socket.io/?transport=websocket&EIO=4"
+          auth:
+            token: "{{ jwt_token }}"
       - think: 2
-      - send:
-          data: '40{"token":"{{ jwt_token }}"}'
-      - think: 3
+      - emit:
+          event: "send_message"
+          data:
+            conversationId: "test-conv"
+            content: "Load test message"
+            messageType: "text"
+      - think: 5
       - loop:
           - think: 5
-          - send:
-              data: '42["send_message",{"conversationId":"test-conv","content":"Load test message","messageType":"text"}]'
+          - emit:
+              event: "send_message"
+              data:
+                conversationId: "test-conv"
+                content: "Load test message"
+                messageType: "text"
           - think: 2
         count: 20
       - think: 5
-      - close
+      - disconnect: true

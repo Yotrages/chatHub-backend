@@ -1085,10 +1085,51 @@ export class PostsController {
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
+        saved: true,
         post,
       });
     } catch (error) {
       console.error("Save post error:", error);
+      res
+        .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        .json({ error: "Internal server error" });
+    }
+  }
+
+  static async unsavePost(req: AuthRequest, res: Response) {
+    try {
+      const { postId } = req.params;
+      const userId = req.user?.userId;
+
+      if (!userId) {
+        res
+          .status(HTTP_STATUS.FORBIDDEN)
+          .json({ error: "You are not authenticated" });
+        return;
+      }
+
+      const user = await User.findById(userId);
+      if (!user) {
+        res.status(HTTP_STATUS.NOT_FOUND).json({ error: "User not found" });
+        return;
+      }
+
+      const before = user.savedPost.length;
+      user.savedPost = user.savedPost.filter(
+        (save) => save.postId.toString() !== postId
+      );
+
+      if (user.savedPost.length !== before) {
+        await user.save();
+      }
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        saved: false,
+        postId,
+      });
+    } catch (error) {
+      console.error("Unsave post error:", error);
       res
         .status(HTTP_STATUS.INTERNAL_SERVER_ERROR)
         .json({ error: "Internal server error" });
